@@ -5,14 +5,14 @@ const db = require("../db");  // ใช้เส้นทาง ../ เพื่
 
 // เพิ่มข้อมูลยา
 router.post("/medicines", (req, res) => {
-    const { med_name, qty, status, price, expired, medtype_id } = req.body;
+    const {med_id , med_name, qty, status, price, expired, medtype_id } = req.body;
 
     const query = `
         INSERT INTO tbmedicines (med_name, qty, status, price, expired, medtype_id)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?,?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(query, [med_name, qty, status, price, expired, medtype_id], (err, result) => {
+    db.query(query, [med_id ,med_name, qty, status, price, expired, medtype_id], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", details: err });
         }

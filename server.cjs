@@ -6,6 +6,8 @@ const patientRoutes = require("./manager/patientRoutes");
 const medicinesRoutes = require("./manager/medicinesRoutes"); 
 const categoryRoutes = require("./manager/categoryRoutes"); 
 const serviceRoutes = require("./manager/serviceRoutes"); 
+const exchangeRoutes = require("./manager/exchangeRoutes"); 
+
 
 
 const db = require("./db");  
@@ -16,13 +18,20 @@ app.use(cors());
 app.use("/manager", patientRoutes);  
 app.use("/manager", medicinesRoutes);  
 app.use("/manager", categoryRoutes);  
-app.use("/manager", serviceRoutes);  
+app.use("/manager", exchangeRoutes);  
+const color = {
+  
+    yellow: "\x1b[33m",
+    green: "\x1b[32m",
+};
 
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log(`|----------------------------------------------------|`);
-    console.log(`|🚀 🚀 🚀    Server is running on port ${PORT} 🌈      |`);
+    console.log("╔══════════════════════════════════════════════════╗");
+    console.log("║                                                  ║");
+    console.log(`|${color.green}🌍 Server is running on port ${PORT}  🌈🌈 `);
+    console.log("║                                                  ║");
 
 });
 

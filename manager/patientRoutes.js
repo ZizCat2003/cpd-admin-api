@@ -1,28 +1,29 @@
 // patientRoutes.js
 const express = require("express");
 const router = express.Router();
-// ใน patientRoutes.js
-const db = require("../db");  // ใช้เส้นทาง ../ เพื่อไปยังไฟล์ db.js
+const db = require("../db"); 
 
 
-// เพิ่มข้อมูลคนเจ็บ
 router.post("/patient", (req, res) => {
-    const { patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district } = req.body;
+    console.log(req.body); // Debugging ข้อมูลที่ถูกส่งมา
+
+    const { patient_id, patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district } = req.body;
 
     const query = `
-        INSERT INTO tbPatient (patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tbPatient (patient_id, patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(query, [patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district], (err, result) => {
+    db.query(query, [patient_id, patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district], (err, result) => {
         if (err) {
+            console.error("SQL Error:", err); // Log Error
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນໄດ້ ❌", details: err });
         }
         res.status(201).json({ message: "ເພີ່ມຂໍ້ມູນສຳເລັດ ✅", patient_id: result.insertId });
     });
 });
 
-// ดึงข้อมูลทั้งหมดของคนเจ็บ
+
 router.get("/patient", (req, res) => {
     const query = "SELECT * FROM tbPatient";
     db.query(query, (err, results) => {

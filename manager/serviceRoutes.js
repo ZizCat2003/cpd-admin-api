@@ -5,14 +5,14 @@ const db = require("../db");  // ใช้เส้นทาง ../ เพื่
 
 // เพิ่มบริการใหม่
 router.post("/servicelist", (req, res) => {
-    const { ser_name, price } = req.body;
+    const {ser_id, ser_name, price } = req.body;
 
     const query = `
-        INSERT INTO tbservice (ser_name, price)
-        VALUES (?, ?)
+        INSERT INTO tbservice (ser_id, ser_name, price)
+        VALUES (?, ?,?)
     `;
 
-    db.query(query, [ser_name, price], (err, result) => {
+    db.query(query, [ser_id,ser_name, price], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນບໍລິການ ❌", details: err });
         }

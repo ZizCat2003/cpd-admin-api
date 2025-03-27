@@ -5,14 +5,14 @@ const db = require("../db");  // ใช้เส้นทาง ../ เพื่
 
 // เพิ่มประเภทยา
 router.post("/category", (req, res) => {
-    const { type_name } = req.body;
+    const { medtype_id,type_name } = req.body;
 
     const query = `
         INSERT INTO tbmedicinestype (type_name)
-        VALUES (?)
+        VALUES (?,?)
     `;
 
-    db.query(query, [type_name], (err, result) => {
+    db.query(query, [medtype_id,type_name], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນປະເພດຢາ ❌", details: err });
         }
