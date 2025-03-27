@@ -7,6 +7,8 @@ const medicinesRoutes = require("./manager/medicinesRoutes");
 const categoryRoutes = require("./manager/categoryRoutes"); 
 const serviceRoutes = require("./manager/serviceRoutes"); 
 const exchangeRoutes = require("./manager/exchangeRoutes"); 
+const diseaseRoutes = require("./manager/diseaseRoutes"); 
+
 
 
 
@@ -18,6 +20,9 @@ app.use(cors());
 app.use("/manager", patientRoutes);  
 app.use("/manager", medicinesRoutes);  
 app.use("/manager", categoryRoutes);  
+app.use("/manager", serviceRoutes);  
+app.use("/manager", diseaseRoutes);  
+
 app.use("/manager", exchangeRoutes);  
 const color = {
   
