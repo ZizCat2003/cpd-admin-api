@@ -8,7 +8,7 @@ router.post("/medicines", (req, res) => {
     const {med_id , med_name, qty, status, price, expired, medtype_id } = req.body;
 
     const query = `
-        INSERT INTO tbmedicines (med_name, qty, status, price, expired, medtype_id)
+        INSERT INTO tbmedicines (med_id,med_name, qty, status, price, expired, medtype_id)
         VALUES (?,?, ?, ?, ?, ?, ?)
     `;
 

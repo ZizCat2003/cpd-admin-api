@@ -8,6 +8,8 @@ const categoryRoutes = require("./manager/categoryRoutes");
 const serviceRoutes = require("./manager/serviceRoutes"); 
 const exchangeRoutes = require("./manager/exchangeRoutes"); 
 const diseaseRoutes = require("./manager/diseaseRoutes"); 
+const supplierRoutes  = require("./manager/supplierRoutes "); 
+
 
 
 
@@ -22,6 +24,7 @@ app.use("/manager", medicinesRoutes);
 app.use("/manager", categoryRoutes);  
 app.use("/manager", serviceRoutes);  
 app.use("/manager", diseaseRoutes);  
+app.use("/manager", supplierRoutes);  
 
 app.use("/manager", exchangeRoutes);  
 const color = {
