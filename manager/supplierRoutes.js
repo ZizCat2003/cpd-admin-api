@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../db"); // นำเข้าไฟล์เชื่อมต่อฐานข้อมูล
+const db = require("../db"); 
 
 // ✅ เพิ่ม Supplier ใหม่
-router.post("/supplierlist", (req, res) => {
+router.post("/supplier", (req, res) => {
     const { sup_id, company_name, address, phone, status } = req.body;
 
     const query = `
@@ -20,7 +20,7 @@ router.post("/supplierlist", (req, res) => {
 });
 
 // ✅ ดึงข้อมูล Supplier ทั้งหมด
-router.get("/supplierlist", (req, res) => {
+router.get("/supplier", (req, res) => {
     const query = "SELECT * FROM tbsupplier";
     db.query(query, (err, results) => {
         if (err) {
@@ -31,7 +31,7 @@ router.get("/supplierlist", (req, res) => {
 });
 
 // ✅ ดึงข้อมูล Supplier ตาม ID
-router.get("/supplierlist/:id", (req, res) => {
+router.get("/supplier/:id", (req, res) => {
     const { id } = req.params;
 
     const query = "SELECT * FROM tbsupplier WHERE sup_id = ?";
@@ -47,7 +47,7 @@ router.get("/supplierlist/:id", (req, res) => {
 });
 
 // ✅ แก้ไขข้อมูล Supplier
-router.put("/supplierlist/:id", (req, res) => {
+router.put("/supplier/:id", (req, res) => {
     const { id } = req.params;
     const { company_name, address, phone, status } = req.body;
 
@@ -69,7 +69,7 @@ router.put("/supplierlist/:id", (req, res) => {
 });
 
 // ✅ ลบข้อมูล Supplier
-router.delete("/supplierlist/:id", (req, res) => {
+router.delete("/supplier/:id", (req, res) => {
     const { id } = req.params;
 
     const query = "DELETE FROM tbsupplier WHERE sup_id = ?";

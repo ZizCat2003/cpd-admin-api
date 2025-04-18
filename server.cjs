@@ -8,14 +8,13 @@ const categoryRoutes = require("./manager/categoryRoutes");
 const serviceRoutes = require("./manager/serviceRoutes"); 
 const exchangeRoutes = require("./manager/exchangeRoutes"); 
 const diseaseRoutes = require("./manager/diseaseRoutes"); 
-const supplierRoutes  = require("./manager/supplierRoutes "); 
+const supplierRoutes  = require("./manager/supplierRoutes"); 
+const EmpRoutes   = require("./manager/EmpRoutes"); 
 
+// ------------------------------------------------------------------------------------------------------
+const appointmentRoutes = require('./appoint/appointmentRoutes');
 
-
-
-
-const db = require("./db");  
-
+app.use('/appoint', appointmentRoutes);
 app.use(express.json());
 app.use(cors());
 
@@ -26,7 +25,10 @@ app.use("/manager", serviceRoutes);
 app.use("/manager", diseaseRoutes);  
 app.use("/manager", supplierRoutes);  
 
-app.use("/manager", exchangeRoutes);  
+app.use("/manager", exchangeRoutes); 
+app.use("/manager", EmpRoutes);  
+
+
 const color = {
   
     yellow: "\x1b[33m",
@@ -36,6 +38,13 @@ const color = {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
+    console.log("↓");
+    console.log("↓");
+    console.log("↓");
+    console.log("↓");
+    console.log("↓");
+
+    
     console.log("╔══════════════════════════════════════════════════╗");
     console.log("║                                                  ║");
     console.log(`|${color.green}🌍 Server is running on port ${PORT}  🌈🌈 `);
