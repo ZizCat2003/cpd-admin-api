@@ -2,6 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
+app.use(express.json());
+app.use(cors());
+
 const patientRoutes = require("./manager/patientRoutes"); 
 const medicinesRoutes = require("./manager/medicinesRoutes"); 
 const categoryRoutes = require("./manager/categoryRoutes"); 
@@ -11,12 +14,15 @@ const diseaseRoutes = require("./manager/diseaseRoutes");
 const supplierRoutes  = require("./manager/supplierRoutes"); 
 const EmpRoutes   = require("./manager/EmpRoutes"); 
 
+
 // ------------------------------------------------------------------------------------------------------
 const appointmentRoutes = require('./appoint/appointmentRoutes');
-
 app.use('/appoint', appointmentRoutes);
-app.use(express.json());
-app.use(cors());
+
+const preorderRoutes = require('./preorder/preorderRoutes');
+app.use('/preorder', preorderRoutes);
+
+
 
 app.use("/manager", patientRoutes);  
 app.use("/manager", medicinesRoutes);  
@@ -27,6 +33,7 @@ app.use("/manager", supplierRoutes);
 
 app.use("/manager", exchangeRoutes); 
 app.use("/manager", EmpRoutes);  
+
 
 
 const color = {

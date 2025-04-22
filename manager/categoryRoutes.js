@@ -3,23 +3,32 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");  // ใช้เส้นทาง ../ เพื่อไปยังไฟล์ db.js
 
-// เพิ่มประเภทยา
+// routes/category.js  (หรือไฟล์ router ของคุณ)
 router.post("/category", (req, res) => {
-    const { medtype_id,type_name } = req.body;
-
+    const { medtype_id, type_name } = req.body;
+  
+    // ระบุสองคอลัมน์ให้ตรงกับสองค่า
     const query = `
-        INSERT INTO tbmedicinestype (type_name)
-        VALUES (?,?)
+      INSERT INTO tbmedicinestype (medtype_id, type_name)
+      VALUES (?, ?)
     `;
-
-    db.query(query, [medtype_id,type_name], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນປະເພດຢາ ❌", details: err });
-        }
-        res.status(201).json({ message: "ເພີ່ມຂໍ້ມູນປະເພດຢາສຳເລັດ ✅", medtype_id: result.insertId });
+  
+    db.query(query, [medtype_id, type_name], (err, result) => {
+      if (err) {
+        console.error("DB insert error:", err);
+        return res.status(500).json({
+          error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນປະເພດຢາ ❌",
+          details: err,
+        });
+      }
+      // สำเร็จ จะได้ insertId กลับมา (แต่ถ้าใช้ PK เอง ก็อาจไม่จำเป็น)
+      res.status(200).json({
+        message: "ເພີ່ມຂໍ້ມູນປະເພດຢາສຳເລັດ ✅",
+        medtype_id: result.insertId,
+      });
     });
-});
-
+  });
+  
 // ดึงข้อมูลทั้งหมดของประเภทยา
 router.get("/category", (req, res) => {
     const query = "SELECT * FROM tbmedicinestype";
