@@ -5,7 +5,7 @@ const db = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "dbcpsc_admin_data",
+    database: "dbcps_data",
     port: 3306
 });
 const color = {
