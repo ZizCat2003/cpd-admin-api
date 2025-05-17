@@ -1,9 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
-
+const path = require("path");
 app.use(express.json());
 app.use(cors());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const patientRoutes = require("./src/manager/patientRoutes"); 
 const medicinesRoutes = require("./src/manager/medicinesRoutes"); 
@@ -24,7 +25,6 @@ app.use('/src/preorder/preorderRoutes', preorderRoutes);
 
 const importRoute = require('./src/im/import');
 app.use('/src/im', importRoute);
-
 app.use("/src/in" , inspection);
 app.use("/src/manager", patientRoutes);  
 app.use("/src/manager", medicinesRoutes);  

@@ -72,20 +72,31 @@ router.put("/patient/:id", (req, res) => {
     });
 });
 
-// ลบข้อมูลคนเจ็บ
+
+
+
+
 router.delete("/patient/:id", (req, res) => {
     const { id } = req.params;
-    const query = "DELETE FROM tbPatient WHERE patient_id = ?";
+    const deleteAppointments = "DELETE FROM tbappointment WHERE patient_id = ?";
+    const deleteInspections = "DELETE FROM tbinspection WHERE patient_id = ?";
+    const deletePatient = "DELETE FROM tbpatient WHERE patient_id = ?";
 
-    db.query(query, [id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: "ບໍ່ສາມາດລົບຂໍ້ມູນຄົນເຈັບໄດ້ ", details: err });
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຄົນເຈັບທີ່ຕ້ອງການລົບ" });
-        }
-        res.status(200).json({ message: "ລົບຂໍ້ມູນສຳເລັດແລ້ວ ✅" });
+    db.query(deleteAppointments, [id], (err) => {
+        if (err) return res.status(500).json({ error: "ຜິດພາດໃນການລົບ tbappointment", details: err });
+
+        db.query(deleteInspections, [id], (err) => {
+            if (err) return res.status(500).json({ error: "ຜິດພາດໃນການລົບ tbinspection", details: err });
+
+            db.query(deletePatient, [id], (err, result) => {
+                if (err) return res.status(500).json({ error: "ຜິດພາດໃນການລົບ tbpatient", details: err });
+                if (result.affectedRows === 0) return res.status(404).json({ message: "ບໍ່ພົບຄົນເຈັບ" });
+
+                res.status(200).json({ message: "ລົບຂໍ້ມູນຄົນເຈັບສຳເລັດແລ້ວ" });
+            });
+        });
     });
 });
+
 
 module.exports = router;

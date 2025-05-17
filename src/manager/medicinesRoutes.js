@@ -1,26 +1,9 @@
 // medicinesRoutes.js
 const express = require("express");
 const router = express.Router();
-const db = require("../../db");  // ใช้เส้นทาง ../ เพื่อไปยังไฟล์ db.js
+const db = require("../../db");  
 
-// เพิ่มข้อมูลยา
-router.post("/medicines", (req, res) => {
-    const {med_id , med_name, qty, status, price, expired, medtype_id } = req.body;
 
-    const query = `
-        INSERT INTO tbmedicines (med_id,med_name, qty, status, price, expired, medtype_id)
-        VALUES (?,?, ?, ?, ?, ?, ?)
-    `;
-
-    db.query(query, [med_id ,med_name, qty, status, price, expired, medtype_id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", details: err });
-        }
-        res.status(201).json({ message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", med_id: result.insertId });
-    });
-});
-
-// ดึงข้อมูลทั้งหมดของยา
 router.get("/medicines", (req, res) => {
     const query = "SELECT * FROM tbmedicines";
     db.query(query, (err, results) => {
@@ -31,7 +14,6 @@ router.get("/medicines", (req, res) => {
     });
 });
 
-// ดึงข้อมูลยาตาม med_id
 router.get("/medicines/:id", (req, res) => {
     const { id } = req.params;
 
@@ -47,18 +29,76 @@ router.get("/medicines/:id", (req, res) => {
     });
 });
 
+router.post("/medicines", (req, res) => {
+    const {
+        med_id,
+        med_name,
+        qty,
+        status,
+        price,
+        expired,
+        medtype_id,
+        emp_id_create,
+        created_at
+    } = req.body;
+
+    const query = `
+        INSERT INTO tbmedicines (
+            med_id, med_name, qty, status, price, expired,
+            medtype_id, emp_id_create, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    db.query(query, [
+        med_id,
+        med_name,
+        qty,
+        status,
+        price,
+        expired,
+        medtype_id,
+        emp_id_create,
+        created_at
+    ], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", details: err });
+        }
+        res.status(201).json({ message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", med_id: result.insertId });
+    });
+});
+
 // แก้ไขข้อมูลยา
 router.put("/medicines/:id", (req, res) => {
     const { id } = req.params;
-    const { med_name, qty, status, price, expired, medtype_id } = req.body;
+    const {
+        med_name,
+        qty,
+        status,
+        price,
+        expired,
+        medtype_id,
+        emp_id_updated,
+        update_by
+    } = req.body;
 
     const query = `
         UPDATE tbmedicines
-        SET med_name = ?, qty = ?, status = ?, price = ?, expired = ?, medtype_id = ?
+        SET med_name = ?, qty = ?, status = ?, price = ?, expired = ?,
+            medtype_id = ?, emp_id_updated = ?, update_by = ?
         WHERE med_id = ?
     `;
 
-    db.query(query, [med_name, qty, status, price, expired, medtype_id, id], (err, result) => {
+    db.query(query, [
+        med_name,
+        qty,
+        status,
+        price,
+        expired,
+        medtype_id,
+        emp_id_updated,
+        update_by,
+        id
+    ], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນຢາ ❌", details: err });
         }
@@ -69,19 +109,29 @@ router.put("/medicines/:id", (req, res) => {
     });
 });
 
-// ลบข้อมูลยา
 router.delete("/medicines/:id", (req, res) => {
     const { id } = req.params;
-    const query = "DELETE FROM tbmedicines WHERE med_id = ?";
 
-    db.query(query, [id], (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: "ບໍ່ສາມາດລົບຂໍ້ມູນຢາ ❌", details: err });
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
-        }
-        res.status(200).json({ message: "ລົບຂໍ້ມູນຢາສຳເລັດ ✅" });
+    const deleteFromImport = "DELETE FROM tbimport WHERE med_id = ?";
+    const deleteFromPreorder = "DELETE FROM tbpreorder WHERE med_id = ?";
+    const deleteFromMedicines = "DELETE FROM tbmedicines WHERE med_id = ?";
+
+    db.query(deleteFromImport, [id], (err) => {
+        if (err) return res.status(500).json({ error: "ລົບຂໍ້ມູນ import ບໍ່ສຳເລັດ", details: err });
+
+        db.query(deleteFromPreorder, [id], (err) => {
+            if (err) return res.status(500).json({ error: "ລົບຂໍ້ມູນ preorder ບໍ່ສຳເລັດ", details: err });
+
+            db.query(deleteFromMedicines, [id], (err, result) => {
+                if (err) return res.status(500).json({ error: "ບໍ່ສາມາດລົບຂໍ້ມູນຢາ ❌", details: err });
+
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
+                }
+
+                res.status(200).json({ message: "ລົບຂໍ້ມູນຢາສຳເລັດ ✅" });
+            });
+        });
     });
 });
 
