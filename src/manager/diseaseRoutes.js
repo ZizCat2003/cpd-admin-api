@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// เพิ่มข้อมูลโรค (Add disease)
 router.post("/disease", (req, res) => {
     const { disease_id, disease_name } = req.body;
 
@@ -19,7 +18,6 @@ router.post("/disease", (req, res) => {
     });
 });
 
-// ดึงข้อมูลทั้งหมด (Get all diseases)
 router.get("/disease", (req, res) => {
     const query = "SELECT * FROM tbdisease";
 
@@ -31,7 +29,6 @@ router.get("/disease", (req, res) => {
     });
 });
 
-// ดึงข้อมูลตาม disease_id (Get disease by ID)
 router.get("/disease/:id", (req, res) => {
     const { id } = req.params;
 
@@ -47,7 +44,6 @@ router.get("/disease/:id", (req, res) => {
     });
 });
 
-// แก้ไขข้อมูลโรค (Edit disease)
 router.put("/disease/:id", (req, res) => {
     const { id } = req.params;
     const { disease_name } = req.body;
@@ -69,7 +65,6 @@ router.put("/disease/:id", (req, res) => {
     });
 });
 
-// ลบข้อมูลโรค (Delete disease)
 router.delete("/disease/:id", (req, res) => {
     const { id } = req.params;
 

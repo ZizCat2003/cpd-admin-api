@@ -14,14 +14,14 @@ const exchangeRoutes = require("./src/manager/exchangeRoutes");
 const diseaseRoutes = require("./src/manager/diseaseRoutes"); 
 const supplierRoutes  = require("./src/manager/supplierRoutes"); 
 const EmpRoutes   = require("./src/manager/EmpRoutes"); 
-const inspection = require("./src/in/inspection");
+const inspection = require("./src/in/inspectionRoutes");
 
 // ------------------------------------------------------------------------------------------------------
 const appointmentRoutes = require('./src/appoint/appointmentRoutes');
 app.use('/src/appoint', appointmentRoutes);
 
-const preorderRoutes = require('./src/preorder/preorderRoutes');
-app.use('/src/preorder/preorderRoutes', preorderRoutes);
+const preorderRoutes = require('./src/preorder/preorder');
+app.use('/src/preorder/preorder', preorderRoutes);
 
 const importRoute = require('./src/im/import');
 app.use('/src/im', importRoute);
@@ -47,18 +47,7 @@ const color = {
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log("↓");
-    console.log("↓");
-    console.log("↓");
-    console.log("↓");
-    console.log("↓");
-
-    
-    console.log("╔══════════════════════════════════════════════════╗");
-    console.log("║                                                  ║");
-    console.log(`|${color.green}🌍 Server is running on port ${PORT}  🌈🌈 `);
-    console.log("║                                                  ║");
-
+   console.log(`Server is running on port ${PORT}`);
 });
 
 // const express = require("express");

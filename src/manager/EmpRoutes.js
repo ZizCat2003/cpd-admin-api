@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// เพิ่มข้อมูลหมอ
 router.post("/emp", (req, res) => {
     const { emp_id, emp_name, emp_surname, gender, dob, phone, address, role } = req.body;
 
@@ -19,7 +18,6 @@ router.post("/emp", (req, res) => {
     });
 });
 
-// แสดงข้อมูลหมอทั้งหมด
 router.get("/emp", (req, res) => {
     const query = "SELECT * FROM tbemployee";
     db.query(query, (err, results) => {
@@ -30,7 +28,6 @@ router.get("/emp", (req, res) => {
     });
 });
 
-// แสดงข้อมูลหมอเฉพาะตาม id
 router.get("/emp/:id", (req, res) => {
     const { id } = req.params;
     const query = "SELECT * FROM tbemployee WHERE emp_id = ?";
@@ -67,7 +64,6 @@ router.put("/emp/:id", (req, res) => {
     });
 });
 
-// ລົບຂໍ້ມູນຂອງຫມອ
 router.delete("/emp/:id", (req, res) => {
     const { id } = req.params;
     const query = "DELETE FROM tbemployee WHERE emp_id = ?";
