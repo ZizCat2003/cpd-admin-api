@@ -33,60 +33,64 @@ router.get("/:id", (req, res) => {
     }
   );
 });
-
-router.put("/:id", (req, res) => {
-  const { id } = req.params;
+router.post("/", (req, res) => {
   const {
+    preorder_id,
     preorder_date,
     qty,
     status,
     lot,
     sup_id,
     med_id,
-    emp_id_updated,
-    update_by,
+    emp_id_create,
+    created_at,
   } = req.body;
 
-  const query = `
-    UPDATE tbpreorder
-    SET
-      preorder_date = ?,
-      qty = ?,
-      status = ?,
-      lot = ?,
-      sup_id = ?,
-      med_id = ?,
-      emp_id_updated = ?,
-      update_by = ?
-    WHERE preorder_id = ?
-  `;
+  let fixedPreorderDate = new Date(preorder_date);
+  fixedPreorderDate.setHours(12, 0, 0, 0);
 
-  db.query(
-    query,
-    [
+  const query = `
+    INSERT INTO tbpreorder (
+      preorder_id,
       preorder_date,
       qty,
       status,
       lot,
       sup_id,
       med_id,
-      emp_id_updated,
-      update_by,
-      id,
+      emp_id_create,
+      created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+    query,
+    [
+      preorder_id,
+      fixedPreorderDate,
+      qty,
+      status,
+      lot,
+      sup_id,
+      med_id,
+      emp_id_create,
+      created_at,
     ],
     (err, result) => {
       if (err) {
         return res
           .status(500)
-          .json({ error: "ແກ້ໄຂ preorder ບໍ່ໄດ້ ❌", details: err });
+          .json({ error: "ບັນທຶກ preorder ບໍ່ສຳເລັດ ❌", details: err });
       }
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "ບໍ່ພົບ preorder ທີ່ຈະແກ້ໄຂ" });
-      }
-      res.status(200).json({ message: "ແກ້ໄຂ preorder ສຳເລັດ ✅" });
+      res.status(201).json({
+        message: "ບັນທຶກ preorder ສຳເລັດ ✅",
+        preorder_id: preorder_id,
+      });
     }
   );
 });
+
+
 
 router.put("/:id", (req, res) => {
   const { id } = req.params;

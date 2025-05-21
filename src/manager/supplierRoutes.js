@@ -15,7 +15,7 @@ router.post("/supplier", (req, res) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນ Supplier ❌", details: err });
         }
-        res.status(201).json({ message: "ເພີ່ມ Supplier ສຳເລັດ ✅", supplier_id: result.insertId });
+        res.status(200).json({ message: "ເພີ່ມ Supplier ສຳເລັດ ✅", supplier_id: result.insertId });
     });
 });
 
