@@ -2,10 +2,14 @@
 const mysql = require('mysql');
 
 const db = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "dbcps_data",
+    host: "172.28.26.181",
+    user: "admin_smt",
+    database: "Test",
+    password: "smt@#2022",
+    // host: "localhost",
+    // user: "root",
+    // database: "dbcpsc_admin",
+    // password: "",
     port: 3306
 });
 const color = {
