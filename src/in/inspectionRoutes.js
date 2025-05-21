@@ -62,34 +62,25 @@ router.put("/inspection/:id", async (req, res) => {
     WHERE in_id = ?
   `;
 
+  const insertDetailSQL = `
+    INSERT INTO tbtreat_detail (in_id, ser_id, qty, price)
+    VALUES (?, ?, ?, ?)
+  `;
+
   try {
-    // Update inspection
-    await db.query(updateInspectionSQL, [
-      diseases_now,
-      symptom,
-      note,
-      id,
-    ]);
 
+    db.query(updateInspectionSQL, [diseases_now, symptom, note, id]);
 
-    const insertDetailSQL = `
-      INSERT INTO tbtreat_detail (in_id, ser_id, qty, price)
-      VALUES (?, ?, ?, ?)
-    `;
-
-    for (const item of detailed) {
-      const { ser_id, qty, price } = item;
-      await db.query(insertDetailSQL, [id, ser_id, qty, price]);
+    for (let i = 0; i < detailed.length; i++) {
+      const { ser_id, qty, price } = detailed[i];
+      db.query(insertDetailSQL, [id, ser_id, qty, price]);
     }
-
-    detailed.forEach(element => {
-      
-    });
 
     res.status(200).json({
       resultCode: "200",
       message: "Update and insertion successful",
     });
+
   } catch (error) {
     res.status(500).json({
       message: "Server error",
