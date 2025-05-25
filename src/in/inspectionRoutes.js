@@ -41,7 +41,7 @@ router.post("/inspection", async (req, res) => {
     return res.status(400).json({ message: "Missing patient_id" });
   }
 
-  const in_id = `PT${moment().format("DDMMYYHHmm")}`;
+  const in_id = `PT${moment().format("DDMMYYHHmmss")}`;
   const in_date = moment().format("YYYY-MM-DD HH:mm:ss.SSS");
   const status = "WATTING";
 
