@@ -16,6 +16,10 @@ const supplierRoutes  = require("./src/manager/supplierRoutes");
 const EmpRoutes   = require("./src/manager/EmpRoutes"); 
 const inspection = require("./src/in/inspectionRoutes");
 
+const packetRoutes = require('./src/manager/packetRoutes');
+app.use('/src/manager/packet', packetRoutes);
+const packetdetailRoutes = require('./src/manager/packetdetailRoutes');
+app.use('/src/manager/packetdetail', packetdetailRoutes);
 // ------------------------------------------------------------------------------------------------------
 const appointmentRoutes = require('./src/appoint/appointmentRoutes');
 app.use('/src/appoint', appointmentRoutes);

@@ -63,13 +63,13 @@ router.get("/medicines/:id", (req, res) => {
     });
   }
 });
-
 router.post("/medicines", (req, res) => {
   const {
     med_id,
     med_name,
     qty,
     status,
+    unit,
     price,
     expired,
     medtype_id,
@@ -77,12 +77,27 @@ router.post("/medicines", (req, res) => {
     created_at,
   } = req.body;
 
+  // เพิ่ม created_at ใน SQL query
   const query = `
         INSERT INTO tbmedicines (
-            med_id, med_name, qty, status, price, expired,
+            med_id, med_name, qty, status, unit, price, expired,
             medtype_id, emp_id_create, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
+
+  console.log('Request body:', req.body);
+  console.log('Values to insert:', [
+    med_id,
+    med_name,
+    qty,
+    status,
+    unit,
+    price,
+    expired,
+    medtype_id,
+    emp_id_create,
+    created_at,
+  ]);
 
   db.query(
     query,
@@ -91,6 +106,7 @@ router.post("/medicines", (req, res) => {
       med_name,
       qty,
       status,
+      unit,
       price,
       expired,
       medtype_id,
@@ -99,24 +115,34 @@ router.post("/medicines", (req, res) => {
     ],
     (err, result) => {
       if (err) {
+        console.error('Database error:', err);
         return res
           .status(500)
-          .json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", details: err });
+          .json({ 
+            error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", 
+            details: err.message,
+            sqlError: err.code 
+          });
       }
+      
+      console.log('Insert result:', result);
       res
         .status(201)
-        .json({ message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", med_id: result.insertId });
+        .json({ 
+          message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", 
+          med_id: result.insertId,
+          data: result
+        });
     }
   );
 });
-
-// แก้ไขข้อมูลยา
 router.put("/medicines/:id", (req, res) => {
   const { id } = req.params;
   const {
     med_name,
     qty,
     status,
+    unit,
     price,
     expired,
     medtype_id,
@@ -126,7 +152,7 @@ router.put("/medicines/:id", (req, res) => {
 
   const query = `
         UPDATE tbmedicines
-        SET med_name = ?, qty = ?, status = ?, price = ?, expired = ?,
+        SET med_name = ?, qty = ?, status = ?, unit = ?, price = ?, expired = ?,
             medtype_id = ?, emp_id_updated = ?, update_by = ?
         WHERE med_id = ?
     `;
