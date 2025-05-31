@@ -5,7 +5,7 @@ const db = require("../../db");
 
 
 router.post("/patient", (req, res) => {
-    console.log(req.body); // Debugging ข้อมูลที่ถูกส่งมา
+    console.log(req.body); 
 
     const { patient_id, patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district } = req.body;
 
@@ -16,7 +16,7 @@ router.post("/patient", (req, res) => {
 
     db.query(query, [patient_id, patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district], (err, result) => {
         if (err) {
-            console.error("SQL Error:", err); // Log Error
+            console.error("SQL Error:", err);
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນໄດ້ ", details: err });
         }
         res.status(201).json({ message: "ເພີ່ມຂໍ້ມູນສຳເລັດ ✅", patient_id: result.insertId });
@@ -34,7 +34,6 @@ router.get("/patient", (req, res) => {
     });
 });
 
-// ดึงข้อมูลคนเจ็บที่มี id เฉพาะ
 router.get("/patient/:id", (req, res) => {
     const { id } = req.params;
 
@@ -50,7 +49,6 @@ router.get("/patient/:id", (req, res) => {
     });
 });
 
-// แก้ไขข้อมูลคนเจ็บ
 router.put("/patient/:id", (req, res) => {
     const { id } = req.params;
     const { patient_name, patient_surname, gender, dob, phone1, phone2, village, province, district } = req.body;

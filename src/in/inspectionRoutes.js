@@ -94,7 +94,7 @@ router.put("/inspection/:id", async (req, res) => {
 
   const updateInspectionSQL = `
     UPDATE tbinspection
-    SET diseases_now = ?, symptom = ?, note = ? , checkup = ?
+    SET diseases_now = ?, symptom = ?,  checkup = ?, note = ?
     WHERE in_id = ?
   `;
 
@@ -105,7 +105,7 @@ router.put("/inspection/:id", async (req, res) => {
 
   try {
 
-    db.query(updateInspectionSQL, [diseases_now, symptom, note, checkup, id]);
+    db.query(updateInspectionSQL, [diseases_now, symptom, checkup, note, id]);
 
     for (let i = 0; i < detailed.length; i++) {
       const { ser_id, qty, price } = detailed[i];
@@ -128,7 +128,7 @@ router.put("/inspection/:id", async (req, res) => {
 router.put("/inspectionmedicines/:id", async (req, res) => {
   const { id } = req.params;
   const { data } = req.body;
-
+console.log(data)
   if (!data || !Array.isArray(data)) {
     return res.status(400).json({ message: "Missing or invalid 'data' array" });
   }
