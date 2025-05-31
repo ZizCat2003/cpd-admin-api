@@ -6,11 +6,11 @@ const db = mysql.createConnection({
     // user: "admin_smt",
     // database: "Test",
     // password: "smt@#2022",
-    host: "localhost",
-    user: "root",
-    database: "dbcps_data",
-    password: "",
-    port: 3306
+    // host: "localhost",
+    // user: "root",
+    // database: "dbcps_data",
+    // password: "",
+    // port: 3306
 });
 const color = {
     red: "\x1b[31m",

@@ -2,6 +2,7 @@ const moment = require("moment");
 const express = require("express");
 const router = express.Router();
 const db = require("../../db");
+const jwt = require("../auth/jwt");
 
 
 router.get("/inspection/:patient_id", async (req, res) => {
@@ -34,8 +35,13 @@ router.get("/inspection/:patient_id", async (req, res) => {
   }
 });
 
-router.post("/inspection", async (req, res) => {
+router.post("/inspection", jwt.verify, async (req, res) => {
   const { patient_id } = req.body;
+  const { id, username } = req.user;
+  console.log(req.user)
+  // const payload = { id, username, level: "normal" };
+  // const token = jwt.sign(payload);
+  // console.log(token);
 
   if (!patient_id) {
     return res.status(400).json({ message: "Missing patient_id" });
@@ -51,25 +57,25 @@ router.post("/inspection", async (req, res) => {
   `;
 
   try {
-    db.query(sql, [in_id, in_date, status, patient_id], (err, result) => {
-      if (err) {
-        return res.status(500).json({
-          message: "Database error",
-          error: err.message,
-        });
-      }
+    // db.query(sql, [in_id, in_date, status, patient_id], (err, result) => {
+    //   if (err) {
+    //     return res.status(500).json({
+    //       message: "Database error",
+    //       error: err.message,
+    //     });
+    //   }
 
-      res.status(200).json({
-        resultCode: "200",
-        message: "Insert successful",
-        data: {
-          in_id,
-          date: in_date,
-          status,
-          patient_id,
-        },
-      });
-    });
+    //   res.status(200).json({
+    //     resultCode: "200",
+    //     message: "Insert successful",
+    //     data: {
+    //       in_id,
+    //       date: in_date,
+    //       status,
+    //       patient_id,
+    //     },
+    //   });
+    // });
   } catch (error) {
     res.status(500).json({
       message: "Server error",
