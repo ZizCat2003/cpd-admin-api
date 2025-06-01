@@ -1,18 +1,17 @@
 // serviceRoutes.js
 const express = require("express");
 const router = express.Router();
-const db = require("../../db");  // ใช้เส้นทาง ../ เพื่อไปยังไฟล์ db.js
+const db = require("../../db");  
 
-// เพิ่มบริการใหม่
 router.post("/servicelist", (req, res) => {
-    const {ser_id, ser_name, price } = req.body;
+    const { ser_id, ser_name, price, ispackage } = req.body;
 
     const query = `
-        INSERT INTO tbservice (ser_id, ser_name, price)
-        VALUES (?, ?,?)
+        INSERT INTO tbservice (ser_id, ser_name, price, ispackage)
+        VALUES (?, ?, ?, ?)
     `;
 
-    db.query(query, [ser_id,ser_name, price], (err, result) => {
+    db.query(query, [ser_id, ser_name, price, ispackage], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນບໍລິການ ❌", details: err });
         }
@@ -20,7 +19,6 @@ router.post("/servicelist", (req, res) => {
     });
 });
 
-// ดึงข้อมูลทั้งหมดของบริการ
 router.get("/servicelist", (req, res) => {
     const query = "SELECT * FROM tbservice";
     db.query(query, (err, results) => {
@@ -31,7 +29,6 @@ router.get("/servicelist", (req, res) => {
     });
 });
 
-// ดึงข้อมูลบริการตาม ID
 router.get("/servicelist/:id", (req, res) => {
     const { id } = req.params;
 
@@ -46,19 +43,17 @@ router.get("/servicelist/:id", (req, res) => {
         res.status(200).json({ message: "ສະແດງຂໍ້ມູນບໍລິການສຳເລັດ ✅", data: results[0] });
     });
 });
-
-// แก้ไขข้อมูลบริการ
 router.put("/servicelist/:id", (req, res) => {
     const { id } = req.params;
-    const { ser_name, price } = req.body;
+    const { ser_name, price, ispackage } = req.body;
 
     const query = `
         UPDATE tbservice
-        SET ser_name = ?, price = ?
+        SET ser_name = ?, price = ?, ispackage = ?
         WHERE ser_id = ?
     `;
 
-    db.query(query, [ser_name, price, id], (err, result) => {
+    db.query(query, [ser_name, price, ispackage, id], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນບໍລິການ ❌", details: err });
         }
@@ -69,7 +64,7 @@ router.put("/servicelist/:id", (req, res) => {
     });
 });
 
-// ลบข้อมูลบริการ
+
 router.delete("/servicelist/:id", (req, res) => {
     const { id } = req.params;
 

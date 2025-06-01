@@ -18,10 +18,10 @@ router.get('/:id', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { packetdetail_id , packet_id, med_id } = req.body;
+  const { packetdetail_id , packet_id, ser_id } = req.body;
   db.query(
-    'INSERT INTO tbpacket_detail (packetdetail_id , packet_id, med_id) VALUES (?, ?, ?)',
-    [packetdetail_id , packet_id, med_id],
+    'INSERT INTO tbpacket_detail (packetdetail_id , packet_id, ser_id) VALUES (?, ?, ?)',
+    [packetdetail_id , packet_id, ser_id],
     (err, result) => {
       if (err) return res.status(500).json({ error: err });
       res.status(201).json({ message: 'Packet created successfully', packetdetail_id: result.insertId });
@@ -31,10 +31,10 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   const id = req.params.id;
-  const { packetdetail_id , packet_id, med_id } = req.body;
+  const { packetdetail_id , packet_id, ser_id } = req.body;
   db.query(
-    'UPDATE tbpacket_detail SET packetdetail_id = ?, med_id = ? WHERE packetdetail_id = ?',
-    [packet_id, med_id, id],
+    'UPDATE tbpacket_detail SET packetdetail_id = ?, ser_id = ? WHERE packetdetail_id = ?',
+    [packet_id, ser_id, id],
     (err) => {
       if (err) return res.status(500).json({ error: err });
       res.json({ message: 'Packet updated successfully' });
