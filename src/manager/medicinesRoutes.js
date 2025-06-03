@@ -136,6 +136,8 @@ router.post("/medicines", (req, res) => {
     }
   );
 });
+
+
 router.put("/medicines/:id", (req, res) => {
   const { id } = req.params;
   const {
@@ -163,6 +165,7 @@ router.put("/medicines/:id", (req, res) => {
       med_name,
       qty,
       status,
+      unit,
       price,
       expired,
       medtype_id,
@@ -183,7 +186,6 @@ router.put("/medicines/:id", (req, res) => {
     }
   );
 });
-
 router.delete("/medicines/:id", (req, res) => {
   const { id } = req.params;
 
