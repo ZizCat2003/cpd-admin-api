@@ -16,6 +16,7 @@ const supplierRoutes = require("./src/manager/supplierRoutes");
 const EmpRoutes = require("./src/manager/EmpRoutes");
 const inspection = require("./src/in/inspectionRoutes");
 const authen = require("./src/auth/api_authen");
+const stockRoutes = require("./src/stock/stock");
 
 const packetRoutes = require('./src/manager/packetRoutes');
 app.use('/src/manager/packet', packetRoutes);
@@ -42,6 +43,8 @@ app.use("/src/manager", exchangeRoutes);
 app.use("/src/manager", EmpRoutes);
 
 app.use("/src/auth/authen/", authen);
+
+app.use("/src/stock", stockRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
