@@ -1,0 +1,19 @@
+### ລາຍການໃບບິນ 
+GET http://localhost:4000/src/invoice/invoice HTTP/1.1
+Content-Type: application/json
+
+### ອອກໃບບິນ 
+POST http://localhost:4000/src/invoice/invoice HTTP/1.1
+Content-Type: application/json
+
+{
+    "total": 500000,
+    "in_id": "PT2105250027"
+}
+
+
+### ຍົກເລີກໃບບິນ 
+PUT http://localhost:4000/src/invoice/cancel/INV250608021223 HTTP/1.1
+Content-Type: application/json
+
+##
