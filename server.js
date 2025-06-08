@@ -17,6 +17,9 @@ const EmpRoutes = require("./src/manager/EmpRoutes");
 const inspection = require("./src/in/inspectionRoutes");
 const authen = require("./src/auth/api_authen");
 const stockRoutes = require("./src/stock/stock");
+const invoiceRoutes = require("./src/invoice/invoice");
+const paymentRoutes = require("./src/payment/payment");
+
 
 const packetRoutes = require('./src/manager/packetRoutes');
 app.use('/src/manager/packet', packetRoutes);
@@ -45,6 +48,8 @@ app.use("/src/manager", EmpRoutes);
 app.use("/src/auth/authen/", authen);
 
 app.use("/src/stock", stockRoutes);
+app.use("/src/invoice", invoiceRoutes);
+app.use("/src/payment", paymentRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
