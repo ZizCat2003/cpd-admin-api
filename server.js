@@ -19,6 +19,7 @@ const authen = require("./src/auth/api_authen");
 const stockRoutes = require("./src/stock/stock");
 const invoiceRoutes = require("./src/invoice/invoice");
 const paymentRoutes = require("./src/payment/payment");
+const reportRoutes = require("./src/report/report");
 
 
 const packetRoutes = require('./src/manager/packetRoutes');
@@ -50,6 +51,8 @@ app.use("/src/auth/authen/", authen);
 app.use("/src/stock", stockRoutes);
 app.use("/src/invoice", invoiceRoutes);
 app.use("/src/payment", paymentRoutes);
+
+app.use("/src/report", reportRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
