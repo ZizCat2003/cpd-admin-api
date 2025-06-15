@@ -35,11 +35,44 @@ router.get("/inspection/:patient_id", async (req, res) => {
   }
 });
 
-router.post("/inspection", jwt.verify, async (req, res) => {
+
+router.get("/inspection/:id", async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ message: "Missing inspection ID" });
+  }
+
+  const sql = `SELECT * FROM tbinspection WHERE in_id = ?`;
+
+  try {
+    db.query(sql, [id], (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: "Database error", error: err.message });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ message: "No inspection found for this ID" });
+      }
+
+      res.status(200).json({
+        resultCode: "200",
+        message: "Fetch successful",
+        data: results[0], 
+      });
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
+// router.post("/inspection", jwt.verify, async (req, res) => {
+router.post("/inspection",  async (req, res) => {
   const { patient_id } = req.body;
-  const { id, username } = req.user;
+  // const { id, username } = req.user;
   console.log(req.user)
-  // const payload = { id, username, level: "normal" };
+  // const payload = { id, username, role: "normal" };
   // const token = jwt.sign(payload);
   // console.log(token);
 
@@ -57,25 +90,25 @@ router.post("/inspection", jwt.verify, async (req, res) => {
   `;
 
   try {
-    // db.query(sql, [in_id, in_date, status, patient_id], (err, result) => {
-    //   if (err) {
-    //     return res.status(500).json({
-    //       message: "Database error",
-    //       error: err.message,
-    //     });
-    //   }
+    db.query(sql, [in_id, in_date, status, patient_id], (err, result) => {
+      if (err) {
+        return res.status(500).json({
+          message: "Database error",
+          error: err.message,
+        });
+      }
 
-    //   res.status(200).json({
-    //     resultCode: "200",
-    //     message: "Insert successful",
-    //     data: {
-    //       in_id,
-    //       date: in_date,
-    //       status,
-    //       patient_id,
-    //     },
-    //   });
-    // });
+      res.status(200).json({
+        resultCode: "200",
+        message: "Insert successful",
+        data: {
+          in_id,
+          date: in_date,
+          status,
+          patient_id,
+        },
+      });
+    });
   } catch (error) {
     res.status(500).json({
       message: "Server error",
@@ -110,6 +143,44 @@ router.put("/inspection/:id", async (req, res) => {
     for (let i = 0; i < detailed.length; i++) {
       const { ser_id, qty, price } = detailed[i];
       db.query(insertDetailSQL, [id, ser_id, qty, price]);
+    }
+
+    res.status(200).json({
+      resultCode: "200",
+      message: "Update and insertion successful",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+router.put("/inspectionmedicines/:id", async (req, res) => {
+  const { id } = req.params;
+  const { data } = req.body;
+// console.log(data)
+  if (!data || !Array.isArray(data)) {
+    return res.status(400).json({ message: "Missing or invalid 'data' array" });
+  }
+
+  const insertDetailSQL = `
+    INSERT INTO tbpresecriptiondetail (in_id, med_id, qty, price)
+    VALUES (?, ?, ?, ?)
+  `;
+
+  const updateInspectionSQL = `update tbpresecriptiondetail set med_id = ?, qty = ?, price = ? where in_id = ?`;
+
+  try {
+    const { med_id, qty, price } = data[0];
+
+    db.query(updateInspectionSQL, [med_id, qty, price, id]);
+
+    for (let i = 0; i < data.length; i++) {
+      const { med_id, qty, price } = data[i];
+      db.query(insertDetailSQL, [id, med_id, qty, price]);
     }
 
     res.status(200).json({

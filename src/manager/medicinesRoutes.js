@@ -63,6 +63,10 @@ router.get("/medicines/:id", (req, res) => {
     });
   }
 });
+
+
+
+
 router.post("/medicines", (req, res) => {
   const {
     med_id,
@@ -220,5 +224,41 @@ router.delete("/medicines/:id", (req, res) => {
     });
   });
 });
+
+// router.post('/stock/checkstock', (req, res) => {
+//   const data = req.body.data; // [{med_id, med_qty, price}, ...]
+
+//   if (!Array.isArray(data)) {
+//     return res.status(400).json({ error: "Invalid data format" });
+//   }
+
+//   const queries = data.map(item => {
+//     return new Promise((resolve, reject) => {
+//       const query = `
+//         UPDATE tbmedicines
+//         SET qty = qty - ?
+//         WHERE med_id = ? AND qty >= ?
+//       `;
+
+//       db.query(query, [item.med_qty, item.med_id, item.med_qty], (err, result) => {
+//         if (err) return reject(err);
+//         if (result.affectedRows === 0) {
+//           // ถ้าสต็อกไม่พอหรือ med_id ไม่มี
+//           return reject(new Error(`สต็อกไม่พอหรือไม่พบ med_id: ${item.med_id}`));
+//         }
+//         resolve();
+//       });
+//     });
+//   });
+
+//   Promise.all(queries)
+//     .then(() => {
+//       res.status(200).json({ message: "ตัดสต็อกสำเร็จ" });
+//     })
+//     .catch(err => {
+//       res.status(400).json({ error: err.message });
+//     });
+// });
+
 
 module.exports = router;

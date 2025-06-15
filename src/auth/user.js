@@ -19,7 +19,7 @@ const user = sequelize.define(
       type: Sequelize.STRING,
       allowNull: false
     },
-    level: {
+    role: {
       type: Sequelize.STRING,
       defaultValue: "normal"
     }

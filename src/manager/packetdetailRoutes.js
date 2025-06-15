@@ -8,6 +8,7 @@ router.get('/', (req, res) => {
   });
 });
 
+
 router.get('/:id', (req, res) => {
   const id = req.params.id;
   db.query('SELECT * FROM tbpacket_detail WHERE packetdetail_id = ?', [id], (err, result) => {
@@ -15,6 +16,7 @@ router.get('/:id', (req, res) => {
     res.json(result[0]);
   });
 });
+
 
 router.post('/', (req, res) => {
   const { packetdetail_id , packet_id, ser_id } = req.body;

@@ -34,10 +34,12 @@ const preorderRoutes = require('./src/preorder/preorder');
 app.use('/src/preorder/preorder', preorderRoutes);
 
 const importRoute = require('./src/im/import');
-app.use('/src/im', importRoute);
+app.use('/src/im/import', importRoute);
 app.use("/src/in", inspection);
 app.use("/src/manager", patientRoutes);
 app.use("/src/manager", medicinesRoutes);
+
+
 app.use("/src/manager", categoryRoutes);
 app.use("/src/manager", serviceRoutes);
 app.use("/src/manager", diseaseRoutes);
