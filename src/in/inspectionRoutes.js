@@ -125,4 +125,67 @@ router.put("/inspection/:id", async (req, res) => {
   }
 });
 
+router.post("/delete/inspection", async (req, res) => {
+  const data = req.body;
+
+  if (!data) {
+    return res.status(400).json({ resultCode: "400", message: "Data is empty!" });
+  }
+
+  const delete_detail_inspection = `
+        DELETE FROM Treat_Detail
+        WHERE tre_Id = ?
+    `;
+
+  try {
+    db.query(delete_detail_inspection, [data?.tre_Id], (err, result) => {
+      if (err) {
+        return res.status(500).json({ message: "Database error", error: err.message });
+      }
+      res.status(200).json({
+        resultCode: "200",
+        message: "Delete inspection successful",
+      });
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+
+router.post("/delete/medicine", async (req, res) => {
+  const data = req.body;
+
+  if (!data) {
+    return res.status(400).json({ resultCode: "400", message: "Data is empty!" });
+  }
+
+  const delete_detail_medicine = `
+        DELETE FROM PrescriptionDetail
+        WHERE pre_id = ?
+    `;
+
+  try {
+    db.query(delete_detail_medicine, [data?.pre_id], (err, result) => {
+      if (err) {
+        return res.status(500).json({ message: "Database error", error: err.message });
+      }
+      res.status(200).json({
+        resultCode: "200",
+        message: "Delete medicine successful",
+      });
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

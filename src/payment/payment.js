@@ -7,7 +7,7 @@ const jwt = require("../auth/jwt")
 router.post("/payment", async (req, res) => {
     const data = req.body;
     const { invoice_id, paid_amount, pay_type, ex_id, ex_rate } = data
-    console.log(data)
+    // console.log(data)
     if (!data) {
         return res.status(400).json({ resultCode: "400", message: "Data is empty!" });
     }
