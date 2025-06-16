@@ -29,8 +29,13 @@ module.exports = {
       req.user = {
         id: decoded.id,
         username: decoded.username,
-        level: decoded.level
+        role: decoded.role,
       };
+
+      req.id = decoded.id;
+      req.username = decoded.username;
+      req.role = decoded.role;
+
       next();
     });
   },

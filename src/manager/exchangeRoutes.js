@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-// เพิ่มข้อมูลอัตราแลกเปลี่ยน
 router.post("/exchange", (req, res) => {
     const { ex_id, ex_type, ex_rate } = req.body;
 
@@ -19,7 +18,6 @@ router.post("/exchange", (req, res) => {
     });
 });
 
-// ดึงข้อมูลทั้งหมด
 router.get("/exchange", (req, res) => {
     const query = "SELECT * FROM tbexchange";
 
@@ -31,7 +29,6 @@ router.get("/exchange", (req, res) => {
     });
 });
 
-// ดึงข้อมูลตาม ex_id
 router.get("/exchange/:id", (req, res) => {
     const { id } = req.params;
 

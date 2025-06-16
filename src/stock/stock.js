@@ -11,7 +11,7 @@ router.post("/checkstock", async (req, res) => {
         return res.status(400).json({ resultCode: "400", message: "Data is empty!" });
     }
 
-    const select_Stock = `SELECT qty FROM Medicines WHERE med_id = ?`;
+    const select_Stock = `SELECT qty FROM tbmedicines WHERE med_id = ?`;
     const insufficientStockItems = [];
 
     try {
@@ -65,7 +65,7 @@ router.post("/prescription/:id", async (req, res) => {
         return res.status(400).json({ resultCode: "400", message: "Missing or invalid 'data' array" });
     }
 
-    const insert_Prescription = `INSERT INTO PrescriptionDetail (med_id, qty, price, in_id) VALUES (?, ?, ?, ?)`;
+    const insert_Prescription = `INSERT INTO tbpresecriptiondetail (med_id, qty, price, in_id) VALUES (?, ?, ?, ?)`;
 
     const update_Stock = `UPDATE Medicines SET qty = qty - ? WHERE med_id = ?`;
 
