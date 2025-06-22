@@ -31,8 +31,10 @@ app.use('/src/manager/packetdetail', packetdetailRoutes);
 const appointmentRoutes = require('./src/appoint/appointmentRoutes');
 app.use('/src/appoint', appointmentRoutes);
 
-const preorderRoutes = require('./src/preorder/preorder');
-app.use('/src/preorder/preorder', preorderRoutes);
+const preorderRoutes = require('./src/preorder/preorderRoutes');
+app.use('/src/preorder', preorderRoutes);
+const preorder_detailRoutes = require('./src/preorder/preorder_detailRoutes');
+app.use('/src/preorder_detail', preorder_detailRoutes);
 
 const importRoute = require('./src/im/import');
 app.use('/src/import/', importRoute);

@@ -18,6 +18,33 @@ router.post("/emp", (req, res) => {
     });
 });
 
+// เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
+router.get("/next-emp-id", (req, res) => {
+    const query = `
+        SELECT emp_id FROM tbemployee WHERE emp_id LIKE 'EMP%' ORDER BY emp_id DESC LIMIT 1
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+        }
+        
+        let nextId = "EMP01"; // รหัสเริ่มต้น
+        
+        if (results.length > 0) {
+            const lastId = results[0].emp_id;
+            const lastNumber = parseInt(lastId.substring(3));
+            const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+            nextId = `EMP${nextNumber}`;
+        }
+        
+        res.status(200).json({ 
+            message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+            nextId: nextId 
+        });
+    });
+});
+
 router.get("/emp", (req, res) => {
     const query = "SELECT * FROM tbemployee";
     db.query(query, (err, results) => {
@@ -27,6 +54,7 @@ router.get("/emp", (req, res) => {
         res.status(200).json({ message: "ດຶງຂໍ້ມູນສຳເລັດ", data: results });
     });
 });
+
 
 router.get("/emp/:id", (req, res) => {
     const { id } = req.params;
@@ -41,6 +69,9 @@ router.get("/emp/:id", (req, res) => {
         res.status(200).json({ message: "ດຶງຂໍ້ມູນສຳເລັດ", data: results[0] });
     });
 });
+
+
+
 
 // 
 router.put("/emp/:id", (req, res) => {

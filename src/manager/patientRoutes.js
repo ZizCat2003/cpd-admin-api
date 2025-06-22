@@ -24,8 +24,55 @@ router.post("/patient", (req, res) => {
 });
 
 
+// เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
+router.get("/next-patient-id", (req, res) => {
+    const query = `
+        SELECT patient_id FROM tbPatient WHERE patient_id LIKE 'PT%' ORDER BY patient_id DESC LIMIT 1
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+        }
+        
+        let nextId = "PT001"; // รหัสเริ่มต้น
+        
+        if (results.length > 0) {
+            const lastId = results[0].patient_id;
+            const lastNumber = parseInt(lastId.substring(2));
+            const nextNumber = (lastNumber + 1).toString().padStart(3, '0');
+            nextId = `PT${nextNumber}`;
+        }
+        
+        res.status(200).json({ 
+            message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+            nextId: nextId 
+        });
+    });
+});
+
+router.get("/patient/dashboard", (req, res) => {
+    const query = "SELECT * FROM tbPatient ORDER BY patient_id DESC LIMIT 3";
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ ", details: err });
+        }
+        res.status(200).json({ message: "ສະແດງຂໍ້ມູນຄົນເຈັບໄດ້ສຳເລັດແລ້ວ ✅", data: results });
+    });
+});
+
 router.get("/patient", (req, res) => {
     const query = "SELECT * FROM tbPatient";
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ ", details: err });
+        }
+        res.status(200).json({ message: "ສະແດງຂໍ້ມູນຄົນເຈັບໄດ້ສຳເລັດແລ້ວ ✅", data: results });
+    });
+});
+
+router.get("/patientP", (req, res) => {
+    const query = "SELECT * FROM tbPatient WHERE patient_id != 'PT0'";
     db.query(query, (err, results) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ ", details: err });
@@ -71,30 +118,27 @@ router.put("/patient/:id", (req, res) => {
 });
 
 
-
-
-
+// ลบข้อมูลจาก tbpatient แบบธรรมดา
 router.delete("/patient/:id", (req, res) => {
-    const { id } = req.params;
-    const deleteAppointments = "DELETE FROM tbappointment WHERE patient_id = ?";
-    const deleteInspections = "DELETE FROM tbinspection WHERE patient_id = ?";
-    const deletePatient = "DELETE FROM tbpatient WHERE patient_id = ?";
+  const { id } = req.params;
 
-    db.query(deleteAppointments, [id], (err) => {
-        if (err) return res.status(500).json({ error: "ຜິດພາດໃນການລົບ tbappointment", details: err });
+  const deletePatient = "DELETE FROM tbpatient WHERE patient_id = ?";
+  db.query(deletePatient, [id], (err, result) => {
+    if (err) {
+      return res.status(500).json({
+        error: "ຜິດພາດໃນການລົບຄົນເຈັບ ❌",
+        details: err,
+      });
+    }
 
-        db.query(deleteInspections, [id], (err) => {
-            if (err) return res.status(500).json({ error: "ຜິດພາດໃນການລົບ tbinspection", details: err });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ບໍ່ພົບຄົນເຈັບນີ້" });
+    }
 
-            db.query(deletePatient, [id], (err, result) => {
-                if (err) return res.status(500).json({ error: "ຜິດພາດໃນການລົບ tbpatient", details: err });
-                if (result.affectedRows === 0) return res.status(404).json({ message: "ບໍ່ພົບຄົນເຈັບ" });
-
-                res.status(200).json({ message: "ລົບຂໍ້ມູນຄົນເຈັບສຳເລັດແລ້ວ" });
-            });
-        });
-    });
+    res.status(200).json({ message: "ລົບຂໍ້ມູນຄົນເຈັບສຳເລັດ ✅" });
+  });
 });
+
 
 
 module.exports = router;

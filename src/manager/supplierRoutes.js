@@ -30,6 +30,33 @@ router.get("/supplier", (req, res) => {
     });
 });
 
+// เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
+router.get("/next-supplier-id", (req, res) => {
+    const query = `
+        SELECT sup_id FROM tbsupplier WHERE sup_id LIKE 'SP%' ORDER BY sup_id DESC LIMIT 1
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+        }
+        
+        let nextId = "SP01"; // รหัสเริ่มต้น
+        
+        if (results.length > 0) {
+            const lastId = results[0].sup_id;
+            const lastNumber = parseInt(lastId.substring(2));
+            const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+            nextId = `SP${nextNumber}`;
+        }
+        
+        res.status(200).json({ 
+            message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+            nextId: nextId 
+        });
+    });
+});
+
 // ✅ ดึงข้อมูล Supplier ตาม ID
 router.get("/supplier/:id", (req, res) => {
     const { id } = req.params;

@@ -4,6 +4,47 @@ const router = express.Router();
 const db = require("../../db");
 const jwt = require("../auth/jwt");
 
+router.get("/inspection-list", async (req, res) => {
+  const sql = `
+    SELECT 
+      i.in_id,
+      i.date,
+      i.status,
+      i.patient_id,
+      i.symptom,
+      i.diseases_now,
+      i.checkup,
+      i.note,
+      p.patient_name,
+      p.patient_surname,
+      p.gender
+    FROM tbinspection i
+    LEFT JOIN tbpatient p ON i.patient_id = p.patient_id
+    ORDER BY i.date DESC
+  `;
+
+  try {
+    db.query(sql, (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: "Database error", error: err.message });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ message: "No inspection records found" });
+      }
+
+      res.status(200).json({
+        resultCode: "200",
+        message: "Fetch successful",
+        data: results,
+      });
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// ------------------
 
 router.get("/inspection/:patient_id", async (req, res) => {
   const { patient_id } = req.params;
@@ -189,6 +230,44 @@ router.post("/delete/inspection", async (req, res) => {
   }
 });
 
+
+router.put("/inspectionmedicines/:id", async (req, res) => {
+  const { id } = req.params;
+  const { data } = req.body;
+console.log(data)
+  if (!data || !Array.isArray(data)) {
+    return res.status(400).json({ message: "Missing or invalid 'data' array" });
+  }
+
+  const insertDetailSQL = `
+    INSERT INTO tbpresecriptiondetail (in_id, med_id, qty, price)
+    VALUES (?, ?, ?, ?)
+  `;
+
+  const updateInspectionSQL = `update tbpresecriptiondetail set med_id = ?, qty = ?, price = ? where in_id = ?`;
+
+  try {
+    const { med_id, qty, price } = data[0];
+
+    db.query(updateInspectionSQL, [med_id, qty, price, id]);
+
+    for (let i = 0; i < data.length; i++) {
+      const { med_id, qty, price } = data[i];
+      db.query(insertDetailSQL, [id, med_id, qty, price]);
+    }
+
+    res.status(200).json({
+      resultCode: "200",
+      message: "Update and insertion successful",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
 
 router.post("/delete/medicine", async (req, res) => {
   const data = req.body;

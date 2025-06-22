@@ -6,7 +6,7 @@ const db = require("../../db");
 router.get("/patient/:id", async (req, res) => {
   const { id } = req.params;
 
-  const select_patient = `SELECT * FROM Patient WHERE patient_id = ?`;
+  const select_patient = `SELECT * FROM tbpatient WHERE patient_id = ?`;
   const select_inspection = `SELECT * FROM tbinspection WHERE patient_id = ?`;
 
   try {
@@ -60,9 +60,9 @@ router.get("/inspection/:id", async (req, res) => {
   const { id } = req.params;
 
   const select_detail_inspection = `
-    SELECT td.tre_id, td.ser_Id, s.ser_name, td.qty, td.price, (td.qty * td.price) as total, td.in_id
+    SELECT td.tre_id, td.ser_id, s.ser_name, td.qty, td.price, (td.qty * td.price) as total, td.in_id
     FROM tbtreat_detail td 
-    JOIN tbservices s on s.ser_Id  = td.ser_Id
+    JOIN tbservice s on s.ser_Id  = td.ser_Id
     where td.in_id = ?`;
 
   try {
@@ -178,16 +178,29 @@ router.get("/prescription/:id", async (req, res) => {
 });
 
 
-
 router.get("/inspection", async (req, res) => {
   const select_inspection = `
-    SELECT ins.in_id, ins.date, ins.patient_id, p.patient_name, ins.diseases_now, ins.symptom, ins.note, ins.status, ins.diseases, ins.checkup
+    SELECT 
+      ins.in_id, 
+      ins.date, 
+      ins.patient_id, 
+      p.patient_name, 
+      p.patient_surname,
+      p.gender,
+      ins.diseases_now, 
+      ins.symptom, 
+      ins.note, 
+      ins.status, 
+      ins.diseases, 
+      ins.checkup
     FROM tbinspection ins
-    JOIN tbpatient p`;
+    JOIN tbpatient p ON ins.patient_id = p.patient_id
+    ORDER BY ins.date DESC`;
 
   try {
     db.query(select_inspection, async (err, results) => {
       if (err) {
+        console.error('Database error:', err);
         return res.status(500).json({
           message: "Server error",
           error: err.message,
@@ -195,24 +208,77 @@ router.get("/inspection", async (req, res) => {
       }
 
       if (results.length === 0) {
-        return res.status(404).json({ message: "No patient found" });
+        return res.status(404).json({ 
+          message: "No inspection records found",
+          detail: []
+        });
       }
 
-      const detail = results;
+      const detail = results.map(row => ({
+        in_id: row.in_id,
+        date: row.date,
+        patient_id: row.patient_id,
+        patient_name: row.patient_name,
+        patient_surname: row.patient_surname || '',
+        gender: row.gender || '',
+        diseases_now: row.diseases_now || '',
+        symptom: row.symptom || '',
+        note: row.note || '',
+        status: row.status || '',
+        diseases: row.diseases,
+        checkup: row.checkup || ''
+      }));
 
       res.status(200).json({
         resultCode: "200",
         message: "Fetch successful",
+        count: detail.length,
         detail: detail,
       });
     });
   } catch (error) {
+    console.error('Server error:', error);
     return res.status(500).json({
       message: "Server error",
       error: error.message,
     });
   }
 });
+// router.get("/inspection", async (req, res) => {
+//   const select_inspection = `
+//     SELECT ins.in_id, ins.date, ins.patient_id, p.patient_name, ins.diseases_now, ins.symptom, ins.note, ins.status, ins.diseases, ins.checkup
+//     FROM tbinspection ins
+//     JOIN tbpatient p`;
+
+//   try {
+//     db.query(select_inspection, async (err, results) => {
+//       if (err) {
+//         return res.status(500).json({
+//           message: "Server error",
+//           error: err.message,
+//         });
+//       }
+
+//       if (results.length === 0) {
+//         return res.status(404).json({ message: "No patient found" });
+//       }
+
+//       const detail = results;
+
+//       res.status(200).json({
+//         resultCode: "200",
+//         message: "Fetch successful",
+//         detail: detail,
+//       });
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       message: "Server error",
+//       error: error.message,
+//     });
+//   }
+// });
+
 router.get("/prescription", async (req, res) => {
   try {
     const { id } = req.query;
@@ -409,6 +475,54 @@ router.get("/appointment", (req, res) => {
       data: results,
     });
   });
+});
+
+
+
+router.get("/import", (req, res) => {
+  const sql = `
+    SELECT 
+      i.im_id,
+      i.im_date,
+      i.emp_id_create,
+      i.note,
+      d.med_id,
+      d.qty,
+      m.med_name,
+      m.medtype_id
+    FROM tbimport i
+    JOIN tbimport_detail d ON i.im_id = d.im_id
+    JOIN tbmedicines m ON d.med_id = m.med_id
+    ORDER BY i.im_date DESC, i.im_id ASC
+  `;
+
+  try {
+    db.query(sql, async (err, results) => {
+      if (err) {
+        return res.status(500).json({
+          message: "Server error",
+          error: err.message,
+        });
+      }
+
+      if (results.length === 0) {
+        return res.status(404).json({ message: "No patient found" });
+      }
+
+      const detail = results;
+
+      res.status(200).json({
+        resultCode: "200",
+        message: "Fetch successful",
+        detail: detail,
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
 });
 
 module.exports = router;

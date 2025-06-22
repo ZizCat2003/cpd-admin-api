@@ -67,7 +67,7 @@ router.post("/prescription/:id", async (req, res) => {
 
     const insert_Prescription = `INSERT INTO tbpresecriptiondetail (med_id, qty, price, in_id) VALUES (?, ?, ?, ?)`;
 
-    const update_Stock = `UPDATE Medicines SET qty = qty - ? WHERE med_id = ?`;
+    const update_Stock = `UPDATE tbmedicines SET qty = qty - ? WHERE med_id = ?`;
 
     try {
 
