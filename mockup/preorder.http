@@ -1,0 +1,26 @@
+### ດືງ ທັງໝົດ
+GET http://localhost:4000/src/preorder HTTP/1.1
+
+### ດຶງ ຕໍ່ id
+GET http://localhost:4000/src/preorder/:id HTTP/1.1
+
+### ລືບ ຫລື ຍົກເລີກ ຕໍ່ id
+GET http://localhost:4000/src/preorder/cancel/:id HTTP/1.1
+
+### ສ້າງ
+POST http://localhost:4000/src/preorder HTTP/1.1
+{
+  "sup_id": 3,
+  "details": [
+    {
+      "med_id": "M001",
+      "qty": 50
+    },
+    {
+      "med_id": "M002",
+      "qty": 30
+    }
+  ]
+}
+
+###

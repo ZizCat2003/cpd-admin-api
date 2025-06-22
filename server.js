@@ -21,6 +21,7 @@ const paymentRoutes = require("./src/payment/payment");
 const reportRoutes = require("./src/report/report");
 const upoloadRoutes = require("./src/upload/uploadRoute");
 const packetRoutes = require('./src/manager/packetRoutes');
+const preorderRoute = require('./src/preorder/preorderRoutes');
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -56,6 +57,8 @@ app.use("/src/auth/authen/", authen);
 app.use("/src/stock", stockRoutes);
 app.use("/src/invoice", invoiceRoutes);
 app.use("/src/payment", paymentRoutes);
+
+app.use("/src/preorder", preorderRoute);
 
 app.use("/src/report", reportRoutes);
 
