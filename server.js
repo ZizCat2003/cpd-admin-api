@@ -22,6 +22,7 @@ const reportRoutes = require("./src/report/report");
 const upoloadRoutes = require("./src/upload/uploadRoute");
 const packetRoutes = require('./src/manager/packetRoutes');
 const preorderRoute = require('./src/preorder/preorderRoutes');
+const supplierRoute = require('./src/supplier/supplierRoutes');
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -59,10 +60,12 @@ app.use("/src/invoice", invoiceRoutes);
 app.use("/src/payment", paymentRoutes);
 
 app.use("/src/preorder", preorderRoute);
+app.use("/src/supplier", supplierRoute);
 
 app.use("/src/report", reportRoutes);
 
 app.use("/src/upload", upoloadRoutes);
+
 
 
 const PORT = process.env.PORT || 4000;
