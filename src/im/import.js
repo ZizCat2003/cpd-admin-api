@@ -46,17 +46,15 @@ const upload = multer({
 });
 
 // ✅ POST - สร้าง import ใหม่ (รองรับการอัพโลดไฟล์)
-router.post("/import", upload.single('file'), (req, res) => {
+router.post("/", upload.single('file'), (req, res) => {
   try {
     const { im_id, im_date, preorder_id, emp_id, note } = req.body;
     
-    // ✅ เช็คว่ามีไฟล์หรือไม่
     let fileName = null;
     if (req.file) {
       fileName = req.file.filename;
     }
 
-    // ✅ ตรวจสอบข้อมูลที่จำเป็น
     if (!im_id || !im_date || !emp_id ) {
       return res.status(400).json({ 
         error: "ຂໍ້ມູນບໍ່ຄົບຖ້ວນ", 
@@ -85,7 +83,6 @@ router.post("/import", upload.single('file'), (req, res) => {
           details: err.message 
         });
       }
-      // ถ้ามี preorder_id ให้อัปเดตสถานะเป็น 'ສຳເລັດ'
       if (preorder_id) {
         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
         db.query(updateStatusQuery, ['ສຳເລັດ', preorder_id]);
@@ -114,7 +111,7 @@ router.post("/import", upload.single('file'), (req, res) => {
 });
 
 // ✅ GET - รับข้อมูล import ทั้งหมด
-router.get("/import", (req, res) => {
+router.get("/", (req, res) => {
   const query = `
     SELECT 
       im_id,
@@ -165,7 +162,6 @@ router.get("/next-import-id", (req, res) => {
     });
 });
 
-// ✅ GET - รับข้อมูล import ตาม ID
 router.get("/import/:id", (req, res) => {
   const { id } = req.params;
   
@@ -192,12 +188,11 @@ router.get("/import/:id", (req, res) => {
 });
 
 // ✅ PUT - อัพเดทข้อมูล import
-router.put("/import/:id", upload.single('file'), (req, res) => {
+router.put("/:id", upload.single('file'), (req, res) => {
   try {
     const { id } = req.params;
     const { im_date, preorder_id, emp_id } = req.body;
     
-    // ✅ ดึงข้อมูลเดิมก่อน
     db.query("SELECT * FROM tbimport WHERE im_id = ?", [id], (err, results) => {
       if (err) {
         return res.status(500).json({ 
@@ -214,11 +209,9 @@ router.put("/import/:id", upload.single('file'), (req, res) => {
       }
       
       const oldData = results[0];
-      let fileName = oldData.file; // ใช้ไฟล์เดิม
+      let fileName = oldData.file;
       
-      // ✅ ถ้ามีไฟล์ใหม่ ให้ลบไฟล์เดิมและใช้ไฟล์ใหม่
       if (req.file) {
-        // ลบไฟล์เดิม
         if (oldData.file) {
           const oldFilePath = path.join(uploadDir, oldData.file);
           if (fs.existsSync(oldFilePath)) {
@@ -266,11 +259,9 @@ router.put("/import/:id", upload.single('file'), (req, res) => {
   }
 });
 
-// ✅ DELETE - ลบข้อมูล import
 router.delete("/import/:id", (req, res) => {
   const { id } = req.params;
   
-  // ✅ ดึงข้อมูลก่อนลบเพื่อลบไฟล์ด้วย
   db.query("SELECT file, preorder_id FROM tbimport WHERE im_id = ?", [id], (err, results) => {
     if (err) {
       return res.status(500).json({ 

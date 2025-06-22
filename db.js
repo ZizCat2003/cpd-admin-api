@@ -7,7 +7,7 @@ const db = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "dbcpsc_admin",
+    database: "dbcpsc_admin_cc",
     port: 3306
 });
 

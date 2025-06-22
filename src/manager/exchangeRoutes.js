@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require("../../db");
 
 router.post("/exchange", (req, res) => {
-    const { ex_id, ex_type, ex_rate, ex_date } = req.body;
+    const { ex_id, ex_type, ex_rate } = req.body;
 
     const query = `
         INSERT INTO tbexchange (ex_id, ex_type, ex_rate, ex_date)
@@ -14,9 +14,10 @@ router.post("/exchange", (req, res) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນອັດຕາແລກປ່ຽນ ❌", details: err });
         }
-        res.status(201).json({ message: "ເພີ່ມຂໍ້ມູນອັດຕາແລກປ່ຽນສຳເລັດ ✅", ex_id: result.insertId });
+        res.status(201).json({ message: "ເພີ່ມຂໍ້ມູນສຳເລັດ ✅", ex_id: result.insertId });
     });
 });
+
 
 router.get("/exchange", (req, res) => {
     const query = "SELECT * FROM tbexchange";
@@ -81,11 +82,9 @@ router.get("/exchange/:id", (req, res) => {
         res.status(200).json({ message: "ສະແດງຂໍ້ມູນສຳເລັດ ✅", data: results[0] });
     });
 });
-
-// แก้ไขข้อมูล
 router.put("/exchange/:id", (req, res) => {
     const { id } = req.params;
-    const { ex_type, ex_rate, ex_date } = req.body;
+    const { ex_type, ex_rate } = req.body;
 
     const query = `
         UPDATE tbexchange
