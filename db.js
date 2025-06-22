@@ -1,19 +1,13 @@
 // db.js
 const mysql = require('mysql');
 
-// const db = mysql.createConnection({
-//     host: "172.28.26.181",
-//     user: "admin_smt",
-//     password: "smt@#2022",
-//     database: "Test",
-//     port: 3306
-// });
+
 
 const db = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "dbcps_data",
+    database: "dbcpsc_admin",
     port: 3306
 });
 
@@ -26,6 +20,11 @@ db.connect((err) => {
         console.error(err);
         return;
     }
+    console.log("╔══════════════════════════════════════════════════╗");
+    console.log("║                                                  ║");
+    console.log("║ ✅ Database Connected Successfully!   🚀 🚀 🚀   ║");
+    console.log("║                                                  ║");
+    console.log("╚══════════════════════════════════════════════════╝");
 });
 
 module.exports = db;

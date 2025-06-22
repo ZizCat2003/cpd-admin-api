@@ -22,19 +22,22 @@ const paymentRoutes = require("./src/payment/payment");
 const reportRoutes = require("./src/report/report");
 
 
-const packetRoutes = require('./src/manager/packetRoutes');
-app.use('/src/manager/packet', packetRoutes);
-const packetdetailRoutes = require('./src/manager/packetdetailRoutes');
-app.use('/src/manager/packetdetail', packetdetailRoutes);
+const PacketRoutes  = require("./src/manager/packetdetailRoutes");
+app.use("/src/manager", PacketRoutes); 
 // ------------------------------------------------------------------------------------------------------
 const appointmentRoutes = require('./src/appoint/appointmentRoutes');
 app.use('/src/appoint', appointmentRoutes);
 
-const preorderRoutes = require('./src/preorder/preorder');
-app.use('/src/preorder/preorder', preorderRoutes);
+const preorderRoutes = require('./src/preorder/preorderRoutes');
+app.use('/src/preorder', preorderRoutes);
+const preorder_detailRoutes = require('./src/preorder/preorder_detailRoutes');
+app.use('/src/preorder_detail', preorder_detailRoutes);
 
 const importRoute = require('./src/im/import');
-app.use('/src/im/import', importRoute);
+app.use('/src/im', importRoute);
+const import_detailRoute = require('./src/im/import_detail');
+app.use('/src/im_detail', import_detailRoute);
+
 app.use("/src/in", inspection);
 app.use("/src/manager", patientRoutes);
 app.use("/src/manager", medicinesRoutes);

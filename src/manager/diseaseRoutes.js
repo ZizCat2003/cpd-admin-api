@@ -29,6 +29,33 @@ router.get("/disease", (req, res) => {
     });
 });
 
+// เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
+router.get("/next-disease-id", (req, res) => {
+    const query = `
+        SELECT disease_id FROM tbdisease WHERE disease_id LIKE 'DS%' ORDER BY disease_id DESC LIMIT 1
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+        }
+        
+        let nextId = "DS01"; // รหัสเริ่มต้น
+        
+        if (results.length > 0) {
+            const lastId = results[0].disease_id;
+            const lastNumber = parseInt(lastId.substring(2));
+            const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+            nextId = `DS${nextNumber}`;
+        }
+        
+        res.status(200).json({ 
+            message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+            nextId: nextId 
+        });
+    });
+});
+
 router.get("/disease/:id", (req, res) => {
     const { id } = req.params;
 
