@@ -220,5 +220,59 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+router.delete("/:id", (req, res) => {
+  const { id } = req.params;
+
+  const selectDetails = `
+    SELECT med_id, qty FROM dbcpsc_admin_cc.tbimport_detail WHERE im_id = ?
+  `;
+
+  const updateStock = `
+    UPDATE dbcpsc_admin_cc.tbmedicines SET qty = qty - ? WHERE med_id = ?
+  `;
+
+  const deleteDetails = `
+    DELETE FROM dbcpsc_admin_cc.tbimport_detail WHERE im_id = ?
+  `;
+
+  const deleteImport = `
+    DELETE FROM dbcpsc_admin_cc.tbimport WHERE im_id = ?
+  `;
+
+  // Step 1: Get details to revert stock
+  db.query(selectDetails, [id], (err, detailResults) => {
+    if (err) return res.status(500).json({ message: "Failed to fetch import details", error: err.message });
+
+    const revertPromises = detailResults.map((item) => {
+      return new Promise((resolve, reject) => {
+        db.query(updateStock, [item.qty, item.med_id], (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+    });
+
+    Promise.all(revertPromises)
+      .then(() => {
+        // Step 2: Delete tbimport_detail
+        db.query(deleteDetails, [id], (err) => {
+          if (err) return res.status(500).json({ message: "Failed to delete import details", error: err.message });
+
+          // Step 3: Delete tbimport
+          db.query(deleteImport, [id], (err) => {
+            if (err) return res.status(500).json({ message: "Failed to delete import", error: err.message });
+
+            res.status(200).json({
+              message: `Import ID ${id} and related details deleted. Stock reverted.`,
+            });
+          });
+        });
+      })
+      .catch((err) => {
+        res.status(500).json({ message: "Failed to revert stock", error: err.message });
+      });
+  });
+});
+
 module.exports = router;
 
