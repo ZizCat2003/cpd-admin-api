@@ -13,7 +13,7 @@ const { Sequelize } = require("sequelize");
 //   }
 // );
 const sequelize = new Sequelize(
-  "dbcps_data", // e.g., 'myapp_db'
+  "dbcpsc_admin_cc", // e.g., 'myapp_db'
   "root", // e.g., 'root'
   "", // e.g., 'password'
   {

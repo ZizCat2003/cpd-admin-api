@@ -4,7 +4,6 @@ const app = express();
 const path = require("path");
 app.use(express.json());
 app.use(cors());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const patientRoutes = require("./src/manager/patientRoutes");
 const medicinesRoutes = require("./src/manager/medicinesRoutes");
@@ -20,9 +19,11 @@ const stockRoutes = require("./src/stock/stock");
 const invoiceRoutes = require("./src/invoice/invoice");
 const paymentRoutes = require("./src/payment/payment");
 const reportRoutes = require("./src/report/report");
-
-
+const upoloadRoutes = require("./src/upload/uploadRoute");
 const packetRoutes = require('./src/manager/packetRoutes');
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use('/src/manager/packet', packetRoutes);
 const packetdetailRoutes = require('./src/manager/packetdetailRoutes');
 app.use('/src/manager/packetdetail', packetdetailRoutes);
@@ -34,7 +35,7 @@ const preorderRoutes = require('./src/preorder/preorder');
 app.use('/src/preorder/preorder', preorderRoutes);
 
 const importRoute = require('./src/im/import');
-app.use('/src/im/import', importRoute);
+app.use('/src/import/', importRoute);
 app.use("/src/in", inspection);
 app.use("/src/manager", patientRoutes);
 app.use("/src/manager", medicinesRoutes);
@@ -55,6 +56,9 @@ app.use("/src/invoice", invoiceRoutes);
 app.use("/src/payment", paymentRoutes);
 
 app.use("/src/report", reportRoutes);
+
+app.use("/src/upload", upoloadRoutes);
+
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
