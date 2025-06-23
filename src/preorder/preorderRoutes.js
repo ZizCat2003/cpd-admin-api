@@ -60,13 +60,21 @@ router.post("/", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    // 1. Get all preorders
+    // 1. Get all preorders with optional supplier (LEFT JOIN)
     const preorders = await queryAsync(`
-      SELECT preorder_id, preorder_date, status, sup_id
-      FROM dbcpsc_admin_cc.tbpreorder
+      SELECT 
+        p.preorder_id,
+        p.preorder_date,
+        p.status,
+        p.sup_id,
+        s.company_name
+      FROM 
+        dbcpsc_admin_cc.tbpreorder p
+      LEFT JOIN 
+        dbcpsc_admin_cc.tbsupplier s ON p.sup_id = s.sup_id
     `);
 
-    // 2. Get all preorder_details joined with medicine, include detail_id
+    // 2. Get all preorder_details joined with medicine
     const details = await queryAsync(`
       SELECT 
         d.detail_id,
@@ -95,13 +103,14 @@ router.get("/", async (req, res) => {
         preorder_id: preorder.preorder_id,
         preorder_date: moment(preorder.preorder_date).format("YYYY-MM-DD HH:mm"),
         status: preorder.status,
-        sup_id: preorder.sup_id,
+        sup_id: preorder.sup_id ?? null,
+        company_name: preorder.company_name ?? null,
         details: detailItems
       };
     });
 
     res.status(200).json({
-      message: "Fetched preorder(s) with details",
+      message: "Fetched preorder(s) with details and supplier",
       data: result
     });
 
