@@ -5,13 +5,13 @@ Content-Type: application/json
 
 ### ລາຍການປິ່ນປົ່ວ ຕໍ່ຄົນ
 # http://localhost:4000/src/report/inspection/:id
-GET http://localhost:4000/src/report/inspection/PT200625212916 HTTP/1.1
+GET http://localhost:4000/src/report/inspection HTTP/1.1
 Content-Type: application/json
 
 
 ### ລາຍການຈ່າຍຢາ ຕໍ່ຄົນ
 # http://localhost:4000/src/report/prescription/:id
-GET http://localhost:4000/src/report/prescription/PT220625002405 HTTP/1.1
+GET http://localhost:4000/src/report/prescription/PT280625231444 HTTP/1.1
 Content-Type: application/json
 
 
@@ -20,7 +20,7 @@ GET http://localhost:4000/src/report/inspection HTTP/1.1
 Content-Type: application/json
 
 ### ຈຳນວນຢາທີ່ຈ່າຍໄປ
-GET http://localhost:4000/src/report/prescription HTTP/1.1
+GET http://localhost:4000/src/report/prescription?id=PT290625203023 HTTP/1.1
 Content-Type: application/json
 
 ### ຈຳນວນຢາຍັງເຫລືອ

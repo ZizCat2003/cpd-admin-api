@@ -4,6 +4,7 @@ const db = require("../../db");
 
 // ➕ เพิ่มข้อมูลการตรวจ
 router.post("/inspection", (req, res) => {
+    console.log('object');
     const { in_id, date, diseases_now, symptom, note, status, patient_id, diseases_id, emp_id } = req.body;
 
     const query = `
@@ -22,6 +23,7 @@ router.post("/inspection", (req, res) => {
 
 // 🔍 ดึงข้อมูลทั้งหมด
 router.get("/inspection", (req, res) => {
+    console.log('kkk');
     const query = "SELECT * FROM tbinspection";
     db.query(query, (err, results) => {
         if (err) {

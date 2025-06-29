@@ -4,45 +4,45 @@ const router = express.Router();
 const db = require("../../db");
 const jwt = require("../auth/jwt");
 
-router.get("/inspection-list", async (req, res) => {
-  const sql = `
-    SELECT 
-      i.in_id,
-      i.date,
-      i.status,
-      i.patient_id,
-      i.symptom,
-      i.diseases_now,
-      i.checkup,
-      i.note,
-      p.patient_name,
-      p.patient_surname,
-      p.gender
-    FROM tbinspection i
-    LEFT JOIN tbpatient p ON i.patient_id = p.patient_id
-    ORDER BY i.date DESC
-  `;
+// router.get("/inspection-list", async (req, res) => {
+//   const sql = `
+//     SELECT 
+//       i.in_id,
+//       i.date,
+//       i.status,
+//       i.patient_id,
+//       i.symptom,
+//       i.diseases_now,
+//       i.checkup,
+//       i.note,
+//       p.patient_name,
+//       p.patient_surname,
+//       p.gender
+//     FROM tbinspection i
+//     LEFT JOIN tbpatient p ON i.patient_id = p.patient_id
+//     ORDER BY i.date DESC
+//   `;
 
-  try {
-    db.query(sql, (err, results) => {
-      if (err) {
-        return res.status(500).json({ message: "Database error", error: err.message });
-      }
+//   try {
+//     db.query(sql, (err, results) => {
+//       if (err) {
+//         return res.status(500).json({ message: "Database error", error: err.message });
+//       }
 
-      if (results.length === 0) {
-        return res.status(404).json({ message: "No inspection records found" });
-      }
+//       if (results.length === 0) {
+//         return res.status(404).json({ message: "No inspection records found" });
+//       }
 
-      res.status(200).json({
-        resultCode: "200",
-        message: "Fetch successful",
-        data: results,
-      });
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
+//       res.status(200).json({
+//         resultCode: "200",
+//         message: "Fetch successful",
+//         data: results,
+//       });
+//     });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// });
 
 // ------------------
 
@@ -161,7 +161,7 @@ router.post("/inspection", async (req, res) => {
 router.put("/inspection/:id", async (req, res) => {
   const { id } = req.params;
   const { diseases_now, symptom, checkup, note, detailed } = req.body;
-
+console.log(req.body);
   if (!detailed || !Array.isArray(detailed)) {
     return res.status(400).json({ resultCode: "400", message: "Missing or invalid 'detailed' array" });
   }

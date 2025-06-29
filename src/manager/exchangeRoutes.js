@@ -3,7 +3,8 @@ const router = express.Router();
 const db = require("../../db");
 
 router.post("/exchange", (req, res) => {
-    const { ex_id, ex_type, ex_rate } = req.body;
+    const { ex_id, ex_type, ex_rate,ex_date } = req.body;
+    // const ex_date = new Date(); // เพิ่มวันที่ปัจจุบัน
 
     const query = `
         INSERT INTO tbexchange (ex_id, ex_type, ex_rate, ex_date)
@@ -84,7 +85,7 @@ router.get("/exchange/:id", (req, res) => {
 });
 router.put("/exchange/:id", (req, res) => {
     const { id } = req.params;
-    const { ex_type, ex_rate } = req.body;
+    const { ex_type, ex_rate, ex_date } = req.body;
 
     const query = `
         UPDATE tbexchange

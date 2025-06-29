@@ -2,10 +2,16 @@
 POST http://localhost:4000/src/auth/authen/register HTTP/1.1
 Content-Type: application/json
 
+# {
+#     "username": "thong",
+#     "password": "aaaa4444",
+#     "role":"admin"
+
+# },
 {
-    "username": "thong",
+    "username": "kim",
     "password": "aaaa4444",
-    "role":"admin"
+    "role":"superadmin"
 
 }
 
@@ -31,7 +37,7 @@ GET http://localhost:4000/src/auth/authen/profile HTTP/1.1
 Content-Type: application/json
 
 {
-    "username": "test",
+    "username": "thong",
     "password": "1234567"
 
 }
