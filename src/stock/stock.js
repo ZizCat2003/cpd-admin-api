@@ -57,6 +57,52 @@ router.post("/checkstock", async (req, res) => {
 
 
 
+// router.post("/prescription/:id", async (req, res) => {
+//     const { id } = req.params;
+//     const { data } = req.body;
+
+//     if (!data || !Array.isArray(data)) {
+//         return res.status(400).json({ resultCode: "400", message: "Missing or invalid 'data' array" });
+//     }
+
+//     const insert_Prescription = `INSERT INTO tbpresecriptiondetail (med_id, qty, price, in_id) VALUES (?, ?, ?, ?)`;
+
+//     const update_Stock = `UPDATE tbmedicines SET qty = qty - ? WHERE med_id = ?`;
+
+//     try {
+
+//         for (let i = 0; i < data.length; i++) {
+//             const { med_id, med_qty, price } = data[i];
+
+//             await new Promise((resolve, reject) => {
+//                 db.query(insert_Prescription, [med_id, med_qty, price, id], (err, result) => {
+//                     if (err) return reject(err);
+//                     resolve(result);
+//                 });
+//             });
+
+//             await new Promise((resolve, reject) => {
+//                 db.query(update_Stock, [med_qty, med_id], (err, result) => {
+//                     if (err) return reject(err);
+//                     resolve(result);
+//                 });
+//             });
+//         }
+
+//         res.status(200).json({
+//             resultCode: "200",
+//             message: "Insert and update stock successful",
+//         });
+
+//     } catch (error) {
+//         res.status(500).json({
+//             message: "Server error",
+//             error: error.message,
+//         });
+//     }
+// });
+
+
 router.post("/prescription/:id", async (req, res) => {
     const { id } = req.params;
     const { data } = req.body;
@@ -65,33 +111,62 @@ router.post("/prescription/:id", async (req, res) => {
         return res.status(400).json({ resultCode: "400", message: "Missing or invalid 'data' array" });
     }
 
-    const insert_Prescription = `INSERT INTO tbpresecriptiondetail (med_id, qty, price, in_id) VALUES (?, ?, ?, ?)`;
-
-    const update_Stock = `UPDATE tbmedicines SET qty = qty - ? WHERE med_id = ?`;
+    const checkExists = `SELECT qty FROM tbpresecriptiondetail WHERE med_id = ? AND in_id = ?`;
+    const updatePrescription = `UPDATE tbpresecriptiondetail SET qty = ?, price = ? WHERE med_id = ? AND in_id = ?`;
+    const insertPrescription = `INSERT INTO tbpresecriptiondetail (med_id, qty, price, in_id) VALUES (?, ?, ?, ?)`;
+    const updateStock = `UPDATE tbmedicines SET qty = qty + ? WHERE med_id = ?`;
 
     try {
+        for (const item of data) {
+            const { med_id, med_qty, price } = item;
 
-        for (let i = 0; i < data.length; i++) {
-            const { med_id, med_qty, price } = data[i];
-
-            await new Promise((resolve, reject) => {
-                db.query(insert_Prescription, [med_id, med_qty, price, id], (err, result) => {
+            // 1. Check if prescription already exists
+            const existing = await new Promise((resolve, reject) => {
+                db.query(checkExists, [med_id, id], (err, results) => {
                     if (err) return reject(err);
-                    resolve(result);
+                    resolve(results.length > 0 ? results[0].qty : null); // return old qty or null
                 });
             });
 
-            await new Promise((resolve, reject) => {
-                db.query(update_Stock, [med_qty, med_id], (err, result) => {
-                    if (err) return reject(err);
-                    resolve(result);
+            if (existing !== null) {
+                const diff = existing - med_qty; // existing - new
+                // Apply difference to medicine stock
+                await new Promise((resolve, reject) => {
+                    db.query(updateStock, [diff, med_id], (err) => {
+                        if (err) return reject(err);
+                        resolve();
+                    });
                 });
-            });
+
+                // Update prescription
+                await new Promise((resolve, reject) => {
+                    db.query(updatePrescription, [med_qty, price, med_id, id], (err) => {
+                        if (err) return reject(err);
+                        resolve();
+                    });
+                });
+            } else {
+                // Insert new
+                await new Promise((resolve, reject) => {
+                    db.query(insertPrescription, [med_id, med_qty, price, id], (err) => {
+                        if (err) return reject(err);
+                        resolve();
+                    });
+                });
+
+                // Decrease stock
+                await new Promise((resolve, reject) => {
+                    db.query(updateStock, [-med_qty, med_id], (err) => {
+                        if (err) return reject(err);
+                        resolve();
+                    });
+                });
+            }
         }
 
         res.status(200).json({
             resultCode: "200",
-            message: "Insert and update stock successful",
+            message: "Prescription and stock updated successfully",
         });
 
     } catch (error) {
