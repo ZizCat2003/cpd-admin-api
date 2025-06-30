@@ -2,7 +2,7 @@
 const { Sequelize } = require("sequelize");
 
 // const sequelize = new Sequelize(
-//   "Test", // e.g., 'myapp_db'
+//   "dbcpsc_admin_cc", // e.g., 'myapp_db'
 //   "admin_smt", // e.g., 'root'
 //   "smt@#2022", // e.g., 'password'
 //   {

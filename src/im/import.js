@@ -1,7 +1,459 @@
+// const express = require("express");
+// const router = express.Router();
+// const db = require("../../db");
+// const multer = require("multer");
+// const path = require("path");
+// const fs = require("fs");
+
+// // ✅ สร้างโฟลเดอร์ upload_file_import ถ้ายังไม่มี
+// const uploadDir = path.join(__dirname, "../../public/upload_file_import");
+// if (!fs.existsSync(uploadDir)) {
+//   fs.mkdirSync(uploadDir, { recursive: true });
+// }
+
+// // ✅ ตั้งค่า multer สำหรับการอัพโลดไฟล์
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     cb(null, uploadDir);
+//   },
+//   filename: function (req, file, cb) {
+//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+//     const fileExtension = path.extname(file.originalname);
+//     const fileName = file.fieldname + '-' + uniqueSuffix + fileExtension;
+//     cb(null, fileName);
+//   }
+// });
+// const upload = multer({
+//   storage: storage,
+//   limits: {
+//     fileSize: 10 * 1024 * 1024, // จำกัด 10MB
+//   },
+//   fileFilter: function (req, file, cb) {
+//     const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png'];
+//     const fileExtension = path.extname(file.originalname).toLowerCase();
+    
+//     if (allowedTypes.includes(fileExtension)) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('ປະເພດຟາຍບໍ່ໄດ້ຮັບອະນຸຍາດ'), false);
+//     }
+//   }
+// });
+
+// // ✅ GET - รับข้อมูล import ทั้งหมด (แก้ไขเส้นทางให้ตรงกับ frontend)
+// router.get("/import", (req, res) => {
+//   const query = `
+//     SELECT 
+//       im_id,
+//       im_date,
+//       preorder_id,
+//       file,
+//       emp_id_create,
+//       note
+//     FROM tbimport 
+//   `;
+  
+//   db.query(query, (err, results) => {
+//     if (err) {
+//       console.error("Database error:", err);
+//       return res.status(500).json({ 
+//         error: "Get import failed", 
+//         details: err.message 
+//       });
+//     }
+//     res.status(200).json({ data: results });
+//   });
+// });
+
+// router.post("/import", upload.single('file'), async (req, res) => {
+//   try {
+//     const { im_id, im_date, preorder_id, emp_id, note, details } = req.body;
+//     const fileName = req.file ? req.file.filename : null;
+
+//     if (!im_id || !im_date || !emp_id || !details) {
+//       return res.status(400).json({
+//         message: "ຂໍ້ມູນບໍ່ຄົບຖ້ວນ (im_id, im_date, emp_id, details)",
+//       });
+//     }
+
+//     // ✅ รวมยาซ้ำ: (med_id + expired_date)
+//     const mergedDetails = {};
+//     details.forEach((item) => {
+//       const key = `${item.med_id}|${item.expired_date}`;
+//       if (!mergedDetails[key]) {
+//         mergedDetails[key] = { ...item };
+//       } else {
+//         mergedDetails[key].qty += item.qty;
+//       }
+//     });
+
+//     const finalDetails = Object.values(mergedDetails);
+
+//     const insertImport = `
+//       INSERT INTO tbimport (im_id, im_date, preorder_id, file, emp_id_create, note)
+//       VALUES (?, ?, ?, ?, ?, ?)
+//     `;
+
+//     const insertDetail = `
+//       INSERT INTO tbimport_detail (im_id, med_id, expired_date, qty)
+//       VALUES (?, ?, ?, ?)
+//     `;
+
+//     const updateStock = `
+//       UPDATE tbmedicines SET qty = qty + ? WHERE med_id = ?
+//     `;
+
+//     // ✅ 1. Insert tbimport
+//     await new Promise((resolve, reject) => {
+//       db.query(
+//         insertImport,
+//         [im_id, im_date, preorder_id || null, fileName, emp_id, note],
+//         (err, result) => {
+//           if (err) return reject(err);
+//           resolve(result);
+//         }
+//       );
+//     });
+
+//     // ✅ 2. Insert details + update stock
+//     for (let item of finalDetails) {
+//       await new Promise((resolve, reject) => {
+//         db.query(
+//           insertDetail,
+//           [im_id, item.med_id, item.expired_date, item.qty],
+//           (err) => {
+//             if (err) return reject(err);
+//             resolve();
+//           }
+//         );
+//       });
+
+//       await new Promise((resolve, reject) => {
+//         db.query(updateStock, [item.qty, item.med_id], (err) => {
+//           if (err) return reject(err);
+//           resolve();
+//         });
+//       });
+//     }
+
+//     // ✅ 3. ถ้ามี preorder → เปลี่ยนสถานะ
+//     if (preorder_id) {
+//       const updateStatusQuery = `
+//         UPDATE tbpreorder SET status = 'ສຳເລັດ' WHERE preorder_id = ?
+//       `;
+//       db.query(updateStatusQuery, [preorder_id]);
+//     }
+
+//     res.status(200).json({
+//       message: "ບັນທຶກຂໍ້ມູນ import ສຳເລັດ ✅",
+//       im_id,
+//       file: fileName,
+//     });
+//   } catch (error) {
+//     console.error("Insert import failed:", error.message);
+//     res.status(500).json({
+//       message: "Server error",
+//       error: error.message,
+//     });
+//   }
+// });
+
+
+// router.get("/next-import-id", (req, res) => {
+//   const query = `
+//     SELECT im_id FROM tbimport WHERE im_id LIKE 'IM%' ORDER BY im_id DESC LIMIT 1
+//   `;
+
+//   db.query(query, (err, results) => {
+//     if (err) {
+//       return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+//     }
+    
+//     let nextId = "IM001"; // รหัสเริ่มต้น
+    
+//     if (results.length > 0) {
+//       const lastId = results[0].im_id;
+//       const lastNumber = parseInt(lastId.substring(2));
+//       const nextNumber = (lastNumber + 1).toString().padStart(3, '0');
+//       nextId = `IM${nextNumber}`;
+//     }
+    
+//     res.status(200).json({ 
+//       message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+//       nextId: nextId 
+//     });
+//   });
+// });
+
+// router.get("/import/:id", (req, res) => {
+//   const { id } = req.params;
+
+//   if (!id) {
+//     return res.status(400).json({ message: "Import ID is required" });
+//   }
+
+//   const selectImport = `
+//     SELECT im_id, im_date, file, preorder_id, note
+//     FROM dbcpsc_admin_cc.tbimport
+//     WHERE im_id = ?
+//   `;
+
+//   const selectDetails = `
+//     SELECT detail_id, im_id, med_id, expired_date, qty
+//     FROM dbcpsc_admin_cc.tbimport_detail
+//     WHERE im_id = ?
+//   `;
+
+//   db.query(selectImport, [id], (err, importResult) => {
+//     if (err) return res.status(500).json({ message: "Database error", error: err.message });
+//     if (importResult.length === 0) return res.status(404).json({ message: "Import not found" });
+
+//     const importData = importResult[0];
+
+//     db.query(selectDetails, [id], (err, detailResult) => {
+//       if (err) return res.status(500).json({ message: "Failed to fetch import details", error: err.message });
+
+//       importData.details = detailResult;
+
+//       res.status(200).json({
+//         resultCode: 200,
+//         message: "Query successfully",
+//         data: importData
+//       });
+//     });
+//   });
+// });
+
+// router.put("/import/:id", upload.single('file'), (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { im_date, preorder_id, emp_id, note } = req.body;
+    
+//     db.query("SELECT * FROM tbimport WHERE im_id = ?", [id], (err, results) => {
+//       if (err) {
+//         return res.status(500).json({ 
+//           error: "Database error", 
+//           details: err.message 
+//         });
+//       }
+      
+//       if (results.length === 0) {
+//         return res.status(404).json({ 
+//           error: "Import not found",
+//           message: "ไม่พบข้อมูล import ที่ระบุ"
+//         });
+//       }
+      
+//       const oldData = results[0];
+//       let fileName = oldData.file;
+      
+//       if (req.file) {
+//         if (oldData.file) {
+//           const oldFilePath = path.join(uploadDir, oldData.file);
+//           if (fs.existsSync(oldFilePath)) {
+//             fs.unlinkSync(oldFilePath);
+//           }
+//         }
+//         fileName = req.file.filename;
+//       }
+      
+//       const updateQuery = `
+//         UPDATE tbimport 
+//         SET im_date = ?, preorder_id = ?, file = ?, emp_id_create = ?, note = ?
+//         WHERE im_id = ?
+//       `;
+      
+//       db.query(updateQuery, [im_date, preorder_id || null, fileName, emp_id, note, id], (err) => {
+//         if (err) {
+//           console.error("Update error:", err);
+//           return res.status(500).json({ 
+//             error: "Update import failed", 
+//             details: err.message 
+//           });
+//         });
+//       });
+
+//       Promise.all(adjustPromises)
+//         .then(() => {
+//           // Step 2: Delete old details
+//           db.query(deleteOldDetails, [id], (err) => {
+//             if (err) return res.status(500).json({ message: "Failed to delete old details", error: err.message });
+
+//             // Step 3: Update tbimport
+//             db.query(updateImport, [file, preorder_id, note, im_date, id], (err) => {
+//               if (err) return res.status(500).json({ message: "Failed to update import", error: err.message });
+
+//               // Step 4: Insert new details + Update stock
+//               const insertPromises = details.map((item) => {
+//                 return new Promise((resolve, reject) => {
+//                   db.query(insertDetail, [id, item.med_id, item.expired_date, item.qty], (err) => {
+//                     if (err) return reject(err);
+//                     db.query(updateStock, [item.qty, item.med_id], (err) => {
+//                       if (err) return reject(err);
+//                       resolve();
+//                     });
+//                   });
+//                 });
+//               });
+
+//               Promise.all(insertPromises)
+//                 .then(() => {
+//                   res.status(200).json({
+//                     message: "Import updated successfully and stock adjusted.",
+//                     importId: id,
+//                   });
+//                 })
+//                 .catch((err) => {
+//                   res.status(500).json({ message: "Failed to update new details or stock", error: err.message });
+//                 });
+//             });
+//           });
+//         })
+//         .catch((err) => {
+//           res.status(500).json({ message: "Failed to reverse old stock", error: err.message });
+//         });
+//     });
+//   } catch (err) {
+//     res.status(500).json({ message: "Server error", error: err.message });
+//   }
+// });
+
+// router.delete("/:id", (req, res) => {
+//   const { id } = req.params;
+  
+//   db.query("SELECT file, preorder_id FROM tbimport WHERE im_id = ?", [id], (err, results) => {
+//     if (err) {
+//       return res.status(500).json({ 
+//         error: "Database error", 
+//         details: err.message 
+//       });
+//     }
+    
+//     if (results.length === 0) {
+//       return res.status(404).json({ 
+//         error: "Import not found",
+//         message: "ไม่พบข้อมูล import ที่ระบุ"
+//       });
+//     }
+    
+//     const fileName = results[0].file;
+//     const preorder_id = results[0].preorder_id;
+
+//     db.query("DELETE FROM tbimport WHERE im_id = ?", [id], (err) => {
+//       if (err) {
+//         return res.status(500).json({ 
+//           error: "Delete import failed", 
+//           details: err.message 
+//         });
+//       });
+//     });
+
+//       if (fileName) {
+//         const filePath = path.join(uploadDir, fileName);
+//         if (fs.existsSync(filePath)) {
+//           fs.unlinkSync(filePath);
+//         }
+//       }
+
+//       if (preorder_id) {
+//         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
+//         db.query(updateStatusQuery, ['ລໍຖ້າຈັດສົ່ງ', preorder_id], (err) => {
+//           if (err) {
+//             console.error("Failed to update preorder status:", err.message);
+//           }
+//         });
+//       })
+//       .catch((err) => {
+//         res.status(500).json({ message: "Failed to revert stock", error: err.message });
+//       });
+//     });
+//   });
+// });
+
+// // ✅ GET - ดูไฟล์
+// router.get("/view/:filename", (req, res) => {
+//   const { filename } = req.params;
+//   const filePath = path.join(uploadDir, filename);
+  
+//   if (!fs.existsSync(filePath)) {
+//     return res.status(404).json({
+//       error: "File not found",
+//       message: "ไม่พบไฟล์ที่ระบุ"
+//     });
+//   }
+  
+//   const ext = path.extname(filename).toLowerCase();
+//   let contentType = 'application/octet-stream';
+  
+//   switch(ext) {
+//     case '.pdf':
+//       contentType = 'application/pdf';
+//       break;
+//     case '.jpg':
+//     case '.jpeg':
+//       contentType = 'image/jpeg';
+//       break;
+//     case '.png':
+//       contentType = 'image/png';
+//       break;
+//     case '.doc':
+//       contentType = 'application/msword';
+//       break;
+//     case '.docx':
+//       contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+//       break;
+//     case '.xls':
+//       contentType = 'application/vnd.ms-excel';
+//       break;
+//     case '.xlsx':
+//       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+//       break;
+//   }
+  
+//   res.setHeader('Content-Type', contentType);
+//   res.setHeader('Content-Disposition', 'inline');
+  
+//   res.sendFile(filePath, (err) => {
+//     if (err) {
+//       console.error("View file error:", err);
+//       res.status(500).json({
+//         error: "View file failed",
+//         details: err.message
+//       });
+//     }
+//   });
+// });
+
+// // ✅ GET - ดาวน์โหลดไฟล์
+// router.get("/download/:filename", (req, res) => {
+//   const { filename } = req.params;
+//   const filePath = path.join(uploadDir, filename);
+  
+//   if (!fs.existsSync(filePath)) {
+//     return res.status(404).json({
+//       error: "File not found",
+//       message: "ไม่พบไฟล์ที่ระบุ"
+//     });
+//   }
+  
+//   res.download(filePath, (err) => {
+//     if (err) {
+//       console.error("Download error:", err);
+//       res.status(500).json({
+//         error: "Download failed",
+//         details: err.message
+//       });
+//     }
+//   });
+// });
+
+// module.exports = router;
+
 const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 const multer = require("multer");
+
 const path = require("path");
 const fs = require("fs");
 
@@ -17,6 +469,7 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
+    // ใช้ timestamp + original name เพื่อหลีกเลี่ยงชื่อซ้ำ
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const fileExtension = path.extname(file.originalname);
     const fileName = file.fieldname + '-' + uniqueSuffix + fileExtension;
@@ -24,12 +477,14 @@ const storage = multer.diskStorage({
   }
 });
 
+// ✅ ตั้งค่าขีดจำกัดและประเภทไฟล์ที่อนุญาต
 const upload = multer({
   storage: storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // จำกัด 10MB
   },
   fileFilter: function (req, file, cb) {
+    // อนุญาตเฉพาะไฟล์ประเภทเอกสาร
     const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png'];
     const fileExtension = path.extname(file.originalname).toLowerCase();
     
@@ -41,32 +496,8 @@ const upload = multer({
   }
 });
 
-// ✅ GET - รับข้อมูล import ทั้งหมด (แก้ไขเส้นทางให้ตรงกับ frontend)
-router.get("/import", (req, res) => {
-  const query = `
-    SELECT 
-      im_id,
-      im_date,
-      preorder_id,
-      file,
-      emp_id_create,
-      note
-    FROM tbimport 
-  `;
-  
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error("Database error:", err);
-      return res.status(500).json({ 
-        error: "Get import failed", 
-        details: err.message 
-      });
-    }
-    res.status(200).json({ data: results });
-  });
-});
-
-router.post("/import", upload.single('file'), (req, res) => {
+// ✅ POST - สร้าง import ใหม่ (รองรับการอัพโลดไฟล์)
+router.post("/", upload.single('file'), (req, res) => {
   try {
     const { im_id, im_date, preorder_id, emp_id, note } = req.body;
     
@@ -75,7 +506,7 @@ router.post("/import", upload.single('file'), (req, res) => {
       fileName = req.file.filename;
     }
 
-    if (!im_id || !im_date || !emp_id) {
+    if (!im_id || !im_date || !emp_id ) {
       return res.status(400).json({ 
         error: "ຂໍ້ມູນບໍ່ຄົບຖ້ວນ", 
         message: "ກະລຸນາເລືອກ im_id, im_date ແລະ emp_id" 
@@ -103,11 +534,10 @@ router.post("/import", upload.single('file'), (req, res) => {
           details: err.message 
         });
       }
-      
       if (preorder_id) {
         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
         db.query(updateStatusQuery, ['ສຳເລັດ', preorder_id]);
-      }
+    }
       
       res.status(200).json({ 
         message: "Insert import success ✅",
@@ -131,30 +561,56 @@ router.post("/import", upload.single('file'), (req, res) => {
   }
 });
 
-router.get("/next-import-id", (req, res) => {
+// ✅ GET - รับข้อมูล import ทั้งหมด
+router.get("/", (req, res) => {
   const query = `
-    SELECT im_id FROM tbimport WHERE im_id LIKE 'IM%' ORDER BY im_id DESC LIMIT 1
+    SELECT 
+      im_id,
+      im_date,
+      preorder_id,
+      file,
+      emp_id_create,
+      note
+    FROM tbimport 
   `;
   
   db.query(query, (err, results) => {
     if (err) {
-      return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+      console.error("Database error:", err);
+      return res.status(500).json({ 
+        error: "Get import failed", 
+        details: err.message 
+      });
     }
-    
-    let nextId = "IM001"; // รหัสเริ่มต้น
-    
-    if (results.length > 0) {
-      const lastId = results[0].im_id;
-      const lastNumber = parseInt(lastId.substring(2));
-      const nextNumber = (lastNumber + 1).toString().padStart(3, '0');
-      nextId = `IM${nextNumber}`;
-    }
-    
-    res.status(200).json({ 
-      message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
-      nextId: nextId 
-    });
+    res.status(200).json({ data: results });
   });
+});
+
+// เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
+router.get("/next-import-id", (req, res) => {
+    const query = `
+        SELECT im_id FROM tbimport WHERE im_id LIKE 'IM%' ORDER BY im_id DESC LIMIT 1
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+        }
+        
+        let nextId = "IM001"; // รหัสเริ่มต้น
+        
+        if (results.length > 0) {
+            const lastId = results[0].im_id;
+            const lastNumber = parseInt(lastId.substring(2));
+            const nextNumber = (lastNumber + 1).toString().padStart(3, '0');
+            nextId = `IM${nextNumber}`;
+        }
+        
+        res.status(200).json({ 
+            message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+            nextId: nextId 
+        });
+    });
 });
 
 router.get("/import/:id", (req, res) => {
@@ -182,10 +638,11 @@ router.get("/import/:id", (req, res) => {
   });
 });
 
-router.put("/import/:id", upload.single('file'), (req, res) => {
+// ✅ PUT - อัพเดทข้อมูล import
+router.put("/:id", upload.single('file'), (req, res) => {
   try {
     const { id } = req.params;
-    const { im_date, preorder_id, emp_id, note } = req.body;
+    const { im_date, preorder_id, emp_id } = req.body;
     
     db.query("SELECT * FROM tbimport WHERE im_id = ?", [id], (err, results) => {
       if (err) {
@@ -272,8 +729,9 @@ router.delete("/import/:id", (req, res) => {
     }
     
     const fileName = results[0].file;
-    const preorder_id = results[0].preorder_id;
+    const preorder_id = results[0].preorder_id; // ✅ ดึง preorder_id จากผลลัพธ์
 
+    // ✅ ลบข้อมูลจากฐานข้อมูล
     db.query("DELETE FROM tbimport WHERE im_id = ?", [id], (err) => {
       if (err) {
         return res.status(500).json({ 
@@ -282,6 +740,7 @@ router.delete("/import/:id", (req, res) => {
         });
       }
 
+      // ✅ ลบไฟล์ถ้ามี
       if (fileName) {
         const filePath = path.join(uploadDir, fileName);
         if (fs.existsSync(filePath)) {
@@ -289,12 +748,14 @@ router.delete("/import/:id", (req, res) => {
         }
       }
 
+      // ✅ ถ้ามี preorder_id ให้อัปเดตสถานะเป็น 'ລໍຖ້າຈັດສົ່ງ'
       if (preorder_id) {
         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
         db.query(updateStatusQuery, ['ລໍຖ້າຈັດສົ່ງ', preorder_id], (err) => {
           if (err) {
             console.error("Failed to update preorder status:", err.message);
           }
+          // ✅ ไม่ต้องรอการอัปเดต status ก็สามารถส่ง response ได้
         });
       }
       
@@ -305,11 +766,13 @@ router.delete("/import/:id", (req, res) => {
   });
 });
 
-// ✅ GET - ดูไฟล์
+
+// เพิ่ม route ใหม่สำหรับการดูไฟล์ (แทนที่จะดาวน์โหลด)
 router.get("/view/:filename", (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(uploadDir, filename);
   
+  // ✅ ตรวจสอบว่าไฟล์มีอยู่จริง
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({
       error: "File not found",
@@ -317,6 +780,7 @@ router.get("/view/:filename", (req, res) => {
     });
   }
   
+  // ✅ กำหนด Content-Type ตามประเภทไฟล์
   const ext = path.extname(filename).toLowerCase();
   let contentType = 'application/octet-stream';
   
@@ -345,9 +809,11 @@ router.get("/view/:filename", (req, res) => {
       break;
   }
   
+  // ✅ ตั้งค่า header เพื่อให้เบราว์เซอร์เปิดไฟล์แทนที่จะดาวน์โหลด
   res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Disposition', 'inline');
+  res.setHeader('Content-Disposition', 'inline'); // สำคัญ! ใช้ 'inline' แทน 'attachment'
   
+  // ✅ ส่งไฟล์
   res.sendFile(filePath, (err) => {
     if (err) {
       console.error("View file error:", err);
@@ -359,7 +825,7 @@ router.get("/view/:filename", (req, res) => {
   });
 });
 
-// ✅ GET - ดาวน์โหลดไฟล์
+// ✅ เก็บ route เดิมไว้สำหรับการดาวน์โหลด (ถ้าต้องการ)
 router.get("/download/:filename", (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(uploadDir, filename);
@@ -371,6 +837,7 @@ router.get("/download/:filename", (req, res) => {
     });
   }
   
+  // ✅ ส่งไฟล์ให้ดาวน์โหลด
   res.download(filePath, (err) => {
     if (err) {
       console.error("Download error:", err);
@@ -383,406 +850,4 @@ router.get("/download/:filename", (req, res) => {
 });
 
 module.exports = router;
-
-// const express = require("express");
-// const router = express.Router();
-// const db = require("../../db");
-// const multer = require("multer");
-
-// const path = require("path");
-// const fs = require("fs");
-
-// // ✅ สร้างโฟลเดอร์ upload_file_import ถ้ายังไม่มี
-// const uploadDir = path.join(__dirname, "../../public/upload_file_import");
-// if (!fs.existsSync(uploadDir)) {
-//   fs.mkdirSync(uploadDir, { recursive: true });
-// }
-
-// // ✅ ตั้งค่า multer สำหรับการอัพโลดไฟล์
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     cb(null, uploadDir);
-//   },
-//   filename: function (req, file, cb) {
-//     // ใช้ timestamp + original name เพื่อหลีกเลี่ยงชื่อซ้ำ
-//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-//     const fileExtension = path.extname(file.originalname);
-//     const fileName = file.fieldname + '-' + uniqueSuffix + fileExtension;
-//     cb(null, fileName);
-//   }
-// });
-
-// // ✅ ตั้งค่าขีดจำกัดและประเภทไฟล์ที่อนุญาต
-// const upload = multer({
-//   storage: storage,
-//   limits: {
-//     fileSize: 10 * 1024 * 1024, // จำกัด 10MB
-//   },
-//   fileFilter: function (req, file, cb) {
-//     // อนุญาตเฉพาะไฟล์ประเภทเอกสาร
-//     const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png'];
-//     const fileExtension = path.extname(file.originalname).toLowerCase();
-    
-//     if (allowedTypes.includes(fileExtension)) {
-//       cb(null, true);
-//     } else {
-//       cb(new Error('ປະເພດຟາຍບໍ່ໄດ້ຮັບອະນຸຍາດ'), false);
-//     }
-//   }
-// });
-
-// // ✅ POST - สร้าง import ใหม่ (รองรับการอัพโลดไฟล์)
-// router.post("/", upload.single('file'), (req, res) => {
-//   try {
-//     const { im_id, im_date, preorder_id, emp_id, note } = req.body;
-    
-//     let fileName = null;
-//     if (req.file) {
-//       fileName = req.file.filename;
-//     }
-
-//     if (!im_id || !im_date || !emp_id ) {
-//       return res.status(400).json({ 
-//         error: "ຂໍ້ມູນບໍ່ຄົບຖ້ວນ", 
-//         message: "ກະລຸນາເລືອກ im_id, im_date ແລະ emp_id" 
-//       });
-//     }
-
-//     const query = `
-//       INSERT INTO tbimport (im_id, im_date, preorder_id, file, emp_id_create, note)
-//       VALUES (?, ?, ?, ?, ?, ?)
-//     `;
-
-//     db.query(query, [im_id, im_date, preorder_id || null, fileName, emp_id, note], (err, result) => {
-//       if (err) {
-//         console.error("Database error:", err);
-        
-//         // ✅ ลบไฟล์ที่อัพโลดแล้วถ้าเกิดข้อผิดพลาดในฐานข้อมูล
-//         if (fileName) {
-//           const filePath = path.join(uploadDir, fileName);
-//           if (fs.existsSync(filePath)) {
-//             fs.unlinkSync(filePath);
-//           }
-//         }      
-//         return res.status(500).json({ 
-//           error: "Insert import failed", 
-//           details: err.message 
-//         });
-//       }
-//       if (preorder_id) {
-//         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
-//         db.query(updateStatusQuery, ['ສຳເລັດ', preorder_id]);
-//     }
-      
-//       res.status(200).json({ 
-//         message: "Insert import success ✅",
-//         data: {
-//           im_id,
-//           im_date,
-//           preorder_id: preorder_id || null,
-//           file: fileName,
-//           emp_id_create: emp_id,
-//           note
-//         }
-//       });
-//     });
-
-//   } catch (error) {
-//     console.error("Server error:", error);
-//     res.status(500).json({ 
-//       error: "Server error", 
-//       details: error.message 
-//     });
-//   }
-// });
-
-// // ✅ GET - รับข้อมูล import ทั้งหมด
-// router.get("/", (req, res) => {
-//   const query = `
-//     SELECT 
-//       im_id,
-//       im_date,
-//       preorder_id,
-//       file,
-//       emp_id_create,
-//       note
-//     FROM tbimport 
-//   `;
-  
-//   db.query(query, (err, results) => {
-//     if (err) {
-//       console.error("Database error:", err);
-//       return res.status(500).json({ 
-//         error: "Get import failed", 
-//         details: err.message 
-//       });
-//     }
-//     res.status(200).json({ data: results });
-//   });
-// });
-
-// // เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
-// router.get("/next-import-id", (req, res) => {
-//     const query = `
-//         SELECT im_id FROM tbimport WHERE im_id LIKE 'IM%' ORDER BY im_id DESC LIMIT 1
-//     `;
-    
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
-//         }
-        
-//         let nextId = "IM001"; // รหัสเริ่มต้น
-        
-//         if (results.length > 0) {
-//             const lastId = results[0].im_id;
-//             const lastNumber = parseInt(lastId.substring(2));
-//             const nextNumber = (lastNumber + 1).toString().padStart(3, '0');
-//             nextId = `IM${nextNumber}`;
-//         }
-        
-//         res.status(200).json({ 
-//             message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
-//             nextId: nextId 
-//         });
-//     });
-// });
-
-// router.get("/import/:id", (req, res) => {
-//   const { id } = req.params;
-  
-//   const query = "SELECT * FROM tbimport WHERE im_id = ?";
-  
-//   db.query(query, [id], (err, results) => {
-//     if (err) {
-//       console.error("Database error:", err);
-//       return res.status(500).json({ 
-//         error: "Get import failed", 
-//         details: err.message 
-//       });
-//     }
-    
-//     if (results.length === 0) {
-//       return res.status(404).json({ 
-//         error: "Import not found",
-//         message: "ไม่พบข้อมูล import ที่ระบุ"
-//       });
-//     }
-    
-//     res.status(200).json({ data: results[0] });
-//   });
-// });
-
-// // ✅ PUT - อัพเดทข้อมูล import
-// router.put("/:id", upload.single('file'), (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { im_date, preorder_id, emp_id } = req.body;
-    
-//     db.query("SELECT * FROM tbimport WHERE im_id = ?", [id], (err, results) => {
-//       if (err) {
-//         return res.status(500).json({ 
-//           error: "Database error", 
-//           details: err.message 
-//         });
-//       }
-      
-//       if (results.length === 0) {
-//         return res.status(404).json({ 
-//           error: "Import not found",
-//           message: "ไม่พบข้อมูล import ที่ระบุ"
-//         });
-//       }
-      
-//       const oldData = results[0];
-//       let fileName = oldData.file;
-      
-//       if (req.file) {
-//         if (oldData.file) {
-//           const oldFilePath = path.join(uploadDir, oldData.file);
-//           if (fs.existsSync(oldFilePath)) {
-//             fs.unlinkSync(oldFilePath);
-//           }
-//         }
-//         fileName = req.file.filename;
-//       }
-      
-//       const updateQuery = `
-//         UPDATE tbimport 
-//         SET im_date = ?, preorder_id = ?, file = ?, emp_id_create = ?, note = ?
-//         WHERE im_id = ?
-//       `;
-      
-//       db.query(updateQuery, [im_date, preorder_id || null, fileName, emp_id, note, id], (err) => {
-//         if (err) {
-//           console.error("Update error:", err);
-//           return res.status(500).json({ 
-//             error: "Update import failed", 
-//             details: err.message 
-//           });
-//         }
-        
-//         res.status(200).json({ 
-//           message: "Update import success ✅",
-//           data: {
-//             im_id: id,
-//             im_date,
-//             preorder_id: preorder_id || null,
-//             file: fileName,
-//             emp_id_create: emp_id,
-//             note: note
-//           }
-//         });
-//       });
-//     });
-    
-//   } catch (error) {
-//     console.error("Server error:", error);
-//     res.status(500).json({ 
-//       error: "Server error", 
-//       details: error.message 
-//     });
-//   }
-// });
-
-// router.delete("/import/:id", (req, res) => {
-//   const { id } = req.params;
-  
-//   db.query("SELECT file, preorder_id FROM tbimport WHERE im_id = ?", [id], (err, results) => {
-//     if (err) {
-//       return res.status(500).json({ 
-//         error: "Database error", 
-//         details: err.message 
-//       });
-//     }
-    
-//     if (results.length === 0) {
-//       return res.status(404).json({ 
-//         error: "Import not found",
-//         message: "ไม่พบข้อมูล import ที่ระบุ"
-//       });
-//     }
-    
-//     const fileName = results[0].file;
-//     const preorder_id = results[0].preorder_id; // ✅ ดึง preorder_id จากผลลัพธ์
-
-//     // ✅ ลบข้อมูลจากฐานข้อมูล
-//     db.query("DELETE FROM tbimport WHERE im_id = ?", [id], (err) => {
-//       if (err) {
-//         return res.status(500).json({ 
-//           error: "Delete import failed", 
-//           details: err.message 
-//         });
-//       }
-
-//       // ✅ ลบไฟล์ถ้ามี
-//       if (fileName) {
-//         const filePath = path.join(uploadDir, fileName);
-//         if (fs.existsSync(filePath)) {
-//           fs.unlinkSync(filePath);
-//         }
-//       }
-
-//       // ✅ ถ้ามี preorder_id ให้อัปเดตสถานะเป็น 'ລໍຖ້າຈັດສົ່ງ'
-//       if (preorder_id) {
-//         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
-//         db.query(updateStatusQuery, ['ລໍຖ້າຈັດສົ່ງ', preorder_id], (err) => {
-//           if (err) {
-//             console.error("Failed to update preorder status:", err.message);
-//           }
-//           // ✅ ไม่ต้องรอการอัปเดต status ก็สามารถส่ง response ได้
-//         });
-//       }
-      
-//       res.status(200).json({ 
-//         message: "Delete import success ✅" 
-//       });
-//     });
-//   });
-// });
-
-
-// // เพิ่ม route ใหม่สำหรับการดูไฟล์ (แทนที่จะดาวน์โหลด)
-// router.get("/view/:filename", (req, res) => {
-//   const { filename } = req.params;
-//   const filePath = path.join(uploadDir, filename);
-  
-//   // ✅ ตรวจสอบว่าไฟล์มีอยู่จริง
-//   if (!fs.existsSync(filePath)) {
-//     return res.status(404).json({
-//       error: "File not found",
-//       message: "ไม่พบไฟล์ที่ระบุ"
-//     });
-//   }
-  
-//   // ✅ กำหนด Content-Type ตามประเภทไฟล์
-//   const ext = path.extname(filename).toLowerCase();
-//   let contentType = 'application/octet-stream';
-  
-//   switch(ext) {
-//     case '.pdf':
-//       contentType = 'application/pdf';
-//       break;
-//     case '.jpg':
-//     case '.jpeg':
-//       contentType = 'image/jpeg';
-//       break;
-//     case '.png':
-//       contentType = 'image/png';
-//       break;
-//     case '.doc':
-//       contentType = 'application/msword';
-//       break;
-//     case '.docx':
-//       contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-//       break;
-//     case '.xls':
-//       contentType = 'application/vnd.ms-excel';
-//       break;
-//     case '.xlsx':
-//       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-//       break;
-//   }
-  
-//   // ✅ ตั้งค่า header เพื่อให้เบราว์เซอร์เปิดไฟล์แทนที่จะดาวน์โหลด
-//   res.setHeader('Content-Type', contentType);
-//   res.setHeader('Content-Disposition', 'inline'); // สำคัญ! ใช้ 'inline' แทน 'attachment'
-  
-//   // ✅ ส่งไฟล์
-//   res.sendFile(filePath, (err) => {
-//     if (err) {
-//       console.error("View file error:", err);
-//       res.status(500).json({
-//         error: "View file failed",
-//         details: err.message
-//       });
-//     }
-//   });
-// });
-
-// // ✅ เก็บ route เดิมไว้สำหรับการดาวน์โหลด (ถ้าต้องการ)
-// router.get("/download/:filename", (req, res) => {
-//   const { filename } = req.params;
-//   const filePath = path.join(uploadDir, filename);
-  
-//   if (!fs.existsSync(filePath)) {
-//     return res.status(404).json({
-//       error: "File not found",
-//       message: "ไม่พบไฟล์ที่ระบุ"
-//     });
-//   }
-  
-//   // ✅ ส่งไฟล์ให้ดาวน์โหลด
-//   res.download(filePath, (err) => {
-//     if (err) {
-//       console.error("Download error:", err);
-//       res.status(500).json({
-//         error: "Download failed",
-//         details: err.message
-//       });
-//     }
-//   });
-// });
-
-// module.exports = router;
 

@@ -4,7 +4,6 @@ const app = express();
 const path = require("path");
 app.use(express.json());
 app.use(cors());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const patientRoutes = require("./src/manager/patientRoutes");
 const medicinesRoutes = require("./src/manager/medicinesRoutes");
@@ -20,10 +19,16 @@ const stockRoutes = require("./src/stock/stock");
 const invoiceRoutes = require("./src/invoice/invoice");
 const paymentRoutes = require("./src/payment/payment");
 const reportRoutes = require("./src/report/report");
+const upoloadRoutes = require("./src/upload/uploadRoute");
+const packetRoutes = require('./src/manager/packetRoutes');
+const preorderRoute = require('./src/preorder/preorderRoutes');
+const supplierRoute = require('./src/supplier/supplierRoutes');
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const PacketRoutes  = require("./src/manager/packetdetailRoutes");
-app.use("/src/manager", PacketRoutes); 
+app.use('/src/manager/packet', packetRoutes);
+const packetdetailRoutes = require('./src/manager/packetdetailRoutes');
+app.use('/src/manager/packetdetail', packetdetailRoutes);
 // ------------------------------------------------------------------------------------------------------
 const appointmentRoutes = require('./src/appoint/appointmentRoutes');
 app.use('/src/appoint', appointmentRoutes);
@@ -34,10 +39,7 @@ const preorder_detailRoutes = require('./src/preorder/preorder_detailRoutes');
 app.use('/src/preorder_detail', preorder_detailRoutes);
 
 const importRoute = require('./src/im/import');
-app.use('/src/im', importRoute);
-const import_detailRoute = require('./src/im/import_detail');
-app.use('/src/im_detail', import_detailRoute);
-
+app.use('/src/import/', importRoute);
 app.use("/src/in", inspection);
 app.use("/src/manager", patientRoutes);
 app.use("/src/manager", medicinesRoutes);
@@ -57,7 +59,14 @@ app.use("/src/stock", stockRoutes);
 app.use("/src/invoice", invoiceRoutes);
 app.use("/src/payment", paymentRoutes);
 
+app.use("/src/preorder", preorderRoute);
+app.use("/src/supplier", supplierRoute);
+
 app.use("/src/report", reportRoutes);
+
+app.use("/src/upload", upoloadRoutes);
+
+
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
