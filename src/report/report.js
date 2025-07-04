@@ -95,12 +95,12 @@ router.get("/patient/:id", async (req, res) => {
 //   }
 // });
 const queryAsync = (sql, params) => {
-    return new Promise((resolve, reject) => {
-        db.query(sql, params, (err, result) => {
-            if (err) return reject(err);
-            resolve(result);
-        });
+  return new Promise((resolve, reject) => {
+    db.query(sql, params, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
     });
+  });
 };
 
 const getInspectionWithPatient = (in_id) => {
