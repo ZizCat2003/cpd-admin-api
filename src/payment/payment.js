@@ -72,8 +72,10 @@ router.post("/payment", async (req, res) => {
       .status(400)
       .json({ resultCode: "400", message: "Data is empty!" });
   }
+const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0'); //  '024'
+const pay_id = `PMT${moment().format("YYMMDDHHmmss")}${random}`;
 
-  const pay_id = `PMT${moment().format("YYMMDDHHmmss")}`;
+  // const pay_id = `PMT${moment().format("YYMMDDHHmmss")}`;
   const pay_date = moment().format("YYYY-MM-DD HH:mm:ss.SSS");
   const status = "SUCCESS";
 

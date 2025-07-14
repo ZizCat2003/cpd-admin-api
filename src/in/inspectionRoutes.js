@@ -241,13 +241,21 @@ router.post("/inspection", async (req, res) => {
 
 router.put("/inspection/:id", async (req, res) => {
   const { id } = req.params;
-  const { diseases_now, symptom, checkup, note, detailed } = req.body;
+ const { diseases_now, symptom, checkup, note, detailed, emp_id_create, emp_id_updated } = req.body;
 
-  const updateInspectionSQL = `
-    UPDATE tbinspection
-    SET diseases_now = ?, symptom = ?, checkup = ?, note = ?
-    WHERE in_id = ?
-  `;
+const updateInspectionSQL = `
+  UPDATE tbinspection
+  SET
+    diseases_now = ?,
+    symptom = ?,
+    checkup = ?,
+    note = ?,
+    emp_id_create = ?,     
+    emp_id_updated = ?    
+  WHERE in_id = ?
+`;
+
+
 
   const checkExistSQL = `
     SELECT * FROM tbtreat_detail
@@ -274,13 +282,24 @@ router.put("/inspection/:id", async (req, res) => {
   `;
 
   try {
-    // ✅ Update tbinspection
-    await new Promise((resolve, reject) => {
-      db.query(updateInspectionSQL, [diseases_now, symptom, checkup, note, id], (err, result) => {
-        if (err) return reject(err);
-        resolve(result);
-      });
-    });
+   await new Promise((resolve, reject) => {
+  db.query(
+    updateInspectionSQL,
+    [
+      diseases_now,
+      symptom,
+      checkup,
+      note,
+      emp_id_create || null,   
+      emp_id_updated || null,  
+      id
+    ],
+    (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    }
+  );
+});
 
     const incomingSerIds = detailed.map(d => d.ser_id); // 🧠 new list
     const existingSerIds = await new Promise((resolve, reject) => {
@@ -341,6 +360,108 @@ router.put("/inspection/:id", async (req, res) => {
     });
   }
 });
+// router.put("/inspection/:id", async (req, res) => {
+//   const { id } = req.params;
+//   const { diseases_now, symptom, checkup, note, detailed } = req.body;
+
+//   const updateInspectionSQL = `
+//     UPDATE tbinspection
+//     SET diseases_now = ?, symptom = ?, checkup = ?, note = ?
+//     WHERE in_id = ?
+//   `;
+
+//   const checkExistSQL = `
+//     SELECT * FROM tbtreat_detail
+//     WHERE in_id = ? AND ser_id = ?
+//   `;
+
+//   const insertDetailSQL = `
+//     INSERT INTO tbtreat_detail (in_id, ser_id, qty, price)
+//     VALUES (?, ?, ?, ?)
+//   `;
+
+//   const updateDetailSQL = `
+//     UPDATE tbtreat_detail
+//     SET qty = ?, price = ?
+//     WHERE in_id = ? AND ser_id = ?
+//   `;
+
+//   const getExistingSerIdsSQL = `
+//     SELECT ser_id FROM tbtreat_detail WHERE in_id = ?
+//   `;
+
+//   const deleteDetailSQL = `
+//     DELETE FROM tbtreat_detail WHERE in_id = ? AND ser_id = ?
+//   `;
+
+//   try {
+//     // ✅ Update tbinspection
+//     await new Promise((resolve, reject) => {
+//       db.query(updateInspectionSQL, [diseases_now, symptom, checkup, note, id], (err, result) => {
+//         if (err) return reject(err);
+//         resolve(result);
+//       });
+//     });
+
+//     const incomingSerIds = detailed.map(d => d.ser_id); // 🧠 new list
+//     const existingSerIds = await new Promise((resolve, reject) => {
+//       db.query(getExistingSerIdsSQL, [id], (err, rows) => {
+//         if (err) return reject(err);
+//         resolve(rows.map(r => r.ser_id));
+//       });
+//     });
+
+//     // ✅ Insert/update logic
+//     for (const item of detailed) {
+//       const { ser_id, qty, price } = item;
+
+//       const exists = await new Promise((resolve, reject) => {
+//         db.query(checkExistSQL, [id, ser_id], (err, result) => {
+//           if (err) return reject(err);
+//           resolve(result.length > 0);
+//         });
+//       });
+
+//       if (exists) {
+//         await new Promise((resolve, reject) => {
+//           db.query(updateDetailSQL, [qty, price, id, ser_id], (err) => {
+//             if (err) return reject(err);
+//             resolve();
+//           });
+//         });
+//       } else {
+//         await new Promise((resolve, reject) => {
+//           db.query(insertDetailSQL, [id, ser_id, qty, price], (err) => {
+//             if (err) return reject(err);
+//             resolve();
+//           });
+//         });
+//       }
+//     }
+
+//     // ✅ Delete missing ser_id from DB
+//     const toDelete = existingSerIds.filter(existingId => !incomingSerIds.includes(existingId));
+//     for (const ser_id of toDelete) {
+//       await new Promise((resolve, reject) => {
+//         db.query(deleteDetailSQL, [id, ser_id], (err) => {
+//           if (err) return reject(err);
+//           resolve();
+//         });
+//       });
+//     }
+
+//     res.status(200).json({
+//       resultCode: "200",
+//       message: "Inspection updated, services inserted/updated/deleted",
+//     });
+
+//   } catch (error) {
+//     res.status(500).json({
+//       message: "Server error",
+//       error: error.message,
+//     });
+//   }
+// });
 
 router.post("/delete/inspection", async (req, res) => {
   const data = req.body;

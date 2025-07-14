@@ -81,11 +81,10 @@ router.get("/medicine-list/:med_id", (req, res) => {
         return res.status(404).json({ message: "Medicine not found" });
       }
       
-      // ส่งข้อมูลยาตัวแรก (เพราะ med_id ควรจะ unique)
       res.status(200).json({ 
         resultCode: "200", 
         message: "Query Success", 
-        data: results[0] // ส่ง object แทน array
+        data: results[0] 
       });
     });
   } catch (error) {

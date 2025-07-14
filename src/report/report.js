@@ -55,14 +55,39 @@ router.get("/patient/:id", async (req, res) => {
     });
   }
 });
+router.get("/patient", async (req, res) => {
+  const select_patients = `SELECT * FROM tbpatient ORDER BY patient_id`;
 
+  try {
+    db.query(select_patients, (err, results) => {
+      if (err) {
+        return res.status(500).json({
+          resultCode: "500",
+          message: "Server error",
+          error: err.message,
+        });
+      }
 
+      res.status(200).json({
+        resultCode: "200",
+        message: "Fetch successful",
+        data: results,
+      });
+    });
+  } catch (error) {
+    return res.status(500).json({
+      resultCode: "500",
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
 // router.get("/inspection/:id", async (req, res) => {
 //   const { id } = req.params;
 
 //   const select_detail_inspection = `
 //     SELECT td.tre_id, td.ser_id, s.ser_name, td.qty, td.price, (td.qty * td.price) as total, td.in_id
-//     FROM tbtreat_detail td 
+//     FROM tbtreat_detail td
 //     JOIN tbservice s on s.ser_Id  = td.ser_Id
 //     where td.in_id = ?`;
 
@@ -184,13 +209,13 @@ router.get("/inspection/:id", async (req, res) => {
       data: {
         ...inspection,
         services,
-        medicines
-      }
+        medicines,
+      },
     });
   } catch (error) {
     res.status(500).json({
       message: "Server error",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -225,7 +250,6 @@ router.get("/inspection", async (req, res) => {
   }
 });
 
-
 const getAllInspections = () => {
   const sql = `
     SELECT 
@@ -245,7 +269,6 @@ const getAllInspections = () => {
   `;
   return queryAsync(sql);
 };
-
 
 router.get("/prescription", async (req, res) => {
   const { id, med_type } = req.query;
@@ -276,8 +299,6 @@ router.get("/prescription", async (req, res) => {
       pre.in_id = ?
   `;
 
-
-
   const params = [id];
 
   if (med_type) {
@@ -295,7 +316,9 @@ router.get("/prescription", async (req, res) => {
       }
 
       if (results.length === 0) {
-        return res.status(404).json({ message: "No prescription details found" });
+        return res
+          .status(404)
+          .json({ message: "No prescription details found" });
       }
 
       return res.status(200).json({
@@ -312,21 +335,20 @@ router.get("/prescription", async (req, res) => {
   }
 });
 
-
 // router.get("/inspection", async (req, res) => {
 //   const select_inspection = `
-//     SELECT 
-//       ins.in_id, 
-//       ins.date, 
-//       ins.patient_id, 
-//       p.patient_name, 
+//     SELECT
+//       ins.in_id,
+//       ins.date,
+//       ins.patient_id,
+//       p.patient_name,
 //       p.patient_surname,
 //       p.gender,
-//       ins.diseases_now, 
-//       ins.symptom, 
-//       ins.note, 
-//       ins.status, 
-//       ins.diseases, 
+//       ins.diseases_now,
+//       ins.symptom,
+//       ins.note,
+//       ins.status,
+//       ins.diseases,
 //       ins.checkup
 //     FROM tbinspection ins
 //     JOIN tbpatient p ON ins.patient_id = p.patient_id
@@ -343,7 +365,7 @@ router.get("/prescription", async (req, res) => {
 //       }
 
 //       if (results.length === 0) {
-//         return res.status(404).json({ 
+//         return res.status(404).json({
 //           message: "No inspection records found",
 //           detail: []
 //         });
@@ -420,14 +442,14 @@ router.get("/prescription", async (req, res) => {
 //     const cate_type = id ? id.toString().toUpperCase() : null;
 
 //     let query = `
-//       SELECT 
+//       SELECT
 //         p.med_id,
 //         m.med_name,
 //         SUM(p.qty) AS qty,
 //         MAX(m.price) AS price
-//       FROM 
+//       FROM
 //         tbpresecriptiondetail p
-//       JOIN 
+//       JOIN
 //         tbmedicines m ON p.med_id = m.med_id
 //     `;
 
@@ -468,16 +490,16 @@ router.get("/prescription", async (req, res) => {
 
 // router.get("/prescription", async (req, res) => {
 //   const select_prescription = `
-//     SELECT 
+//     SELECT
 //     ROW_NUMBER() OVER (ORDER BY p.med_id) AS id,
-//     p.med_id, 
-//     m.med_name, 
+//     p.med_id,
+//     m.med_name,
 //     SUM(p.qty) AS total
-//     FROM 
+//     FROM
 //     tbpresecriptiondetail p
-//     JOIN 
+//     JOIN
 //     tbmedicines m ON p.med_id = m.med_id
-//     GROUP BY 
+//     GROUP BY
 //     p.med_id, m.med_name;`;
 
 //   try {
@@ -612,52 +634,117 @@ router.get("/appointment", (req, res) => {
   });
 });
 
-
-
-router.get("/import", (req, res) => {
+router.get("/preorder", (req, res) => {
   const sql = `
     SELECT 
-      i.im_id,
-      i.im_date,
-      i.emp_id_create,
-      i.note,
-      d.med_id,
-      d.qty,
-      m.med_name,
-      m.medtype_id
-    FROM tbimport i
-    JOIN tbimport_detail d ON i.im_id = d.im_id
-    JOIN tbmedicines m ON d.med_id = m.med_id
-    ORDER BY i.im_date DESC, i.im_id ASC
+      p.preorder_id,
+      p.preorder_date,
+      p.status,
+      p.sup_id,
+      p.emp_id_create,
+      GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
+    FROM tbpreorder p
+    LEFT JOIN tbpreorder_detail d ON d.preorder_id = p.preorder_id
+    LEFT JOIN tbmedicines m ON m.med_id = d.med_id
+    LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
+    GROUP BY p.preorder_id
+    ORDER BY p.preorder_date DESC
   `;
 
-  try {
-    db.query(sql, async (err, results) => {
-      if (err) {
-        return res.status(500).json({
-          message: "Server error",
-          error: err.message,
-        });
-      }
-
-      if (results.length === 0) {
-        return res.status(404).json({ message: "No patient found" });
-      }
-
-      const detail = results;
-
-      res.status(200).json({
-        resultCode: "200",
-        message: "Fetch successful",
-        detail: detail,
-      });
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
-  }
+  db.query(sql, (err, results) => {
+    if (err)
+      return res
+        .status(500)
+        .json({ error: "Get preorder failed", details: err });
+    res.status(200).json({ data: results });
+  });
 });
 
+router.get("/import", (req, res) => {
+  const query = `
+    SELECT 
+  i.im_id,
+  i.im_date,
+  i.preorder_id,
+  i.file,
+  i.emp_id_create,
+  i.note,
+  GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
+FROM tbimport i
+LEFT JOIN tbimport_detail d ON d.im_id = i.im_id
+LEFT JOIN tbmedicines m ON m.med_id = d.med_id
+LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
+GROUP BY i.im_id
+ORDER BY i.im_date DESC
+
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "Get import failed",
+        details: err.message,
+      });
+    }
+    res.status(200).json({ data: results });
+  });
+});
+
+router.get("/import", (req, res) => {
+  const query = `
+    SELECT 
+  i.im_id,
+  i.im_date,
+  i.preorder_id,
+  i.emp_id_create,
+  GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
+FROM tbimport i
+LEFT JOIN tbimport_detail d ON d.im_id = i.im_id
+LEFT JOIN tbmedicines m ON m.med_id = d.med_id
+LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
+GROUP BY i.im_id
+
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "Get import failed",
+        details: err.message,
+      });
+    }
+    res.status(200).json({ data: results });
+  });
+});
+
+router.get("/preorder", (req, res) => {
+  const query = `
+  SELECT 
+  p.preorder_id,
+  p.preorder_date,
+  p.sup_id,
+  p.emp_id_create,
+  GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
+FROM tbpreorder p
+LEFT JOIN tbpreorder_detail d ON d.preorder_id = p.preorder_id
+LEFT JOIN tbmedicines m ON m.med_id = d.med_id
+LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
+GROUP BY p.preorder_id
+
+
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "Get preorder failed",
+        details: err.message,
+      });
+    }
+    res.status(200).json({ data: results });
+  });
+});
 module.exports = router;

@@ -13,12 +13,12 @@ router.post("/", async (req, res) => {
   const preorder_date = moment().format("YYYY-MM-DD HH:mm:ss");
 
   const insertPreorder = `
-    INSERT INTO dbcpsc_admin_cc.tbpreorder (preorder_date, status, sup_id)
+    INSERT INTO tbpreorder (preorder_date, status, sup_id)
     VALUES (?, ?, ?)
   `;
 
   const insertDetail = `
-    INSERT INTO dbcpsc_admin_cc.tbpreorder_detail (preorder_id, med_id, qty)
+    INSERT INTO tbpreorder_detail (preorder_id, med_id, qty)
     VALUES (?, ?, ?)
   `;
 
@@ -69,9 +69,9 @@ router.get("/", async (req, res) => {
         p.sup_id,
         s.company_name
       FROM 
-        dbcpsc_admin_cc.tbpreorder p
+        tbpreorder p
       LEFT JOIN 
-        dbcpsc_admin_cc.tbsupplier s ON p.sup_id = s.sup_id
+        tbsupplier s ON p.sup_id = s.sup_id
     `);
 
     // 2. Get all preorder_details joined with medicine
@@ -83,9 +83,9 @@ router.get("/", async (req, res) => {
         m.med_name,
         d.qty
       FROM 
-        dbcpsc_admin_cc.tbpreorder_detail d
+        tbpreorder_detail d
       JOIN 
-        dbcpsc_admin_cc.tbmedicines m ON d.med_id = m.med_id
+        tbmedicines m ON d.med_id = m.med_id
     `);
 
     // 3. Merge details into each preorder
@@ -129,10 +129,10 @@ router.get("/:id", async (req, res) => {
     // Get preorder(s)
     const preorderSql = preorder_id
       ? `SELECT preorder_id, preorder_date, status, sup_id
-         FROM dbcpsc_admin_cc.tbpreorder
+         FROM tbpreorder
          WHERE preorder_id = ?`
       : `SELECT preorder_id, preorder_date, status, sup_id
-         FROM dbcpsc_admin_cc.tbpreorder`;
+         FROM tbpreorder`;
 
     const preorderParams = preorder_id ? [preorder_id] : [];
 
@@ -151,9 +151,9 @@ router.get("/:id", async (req, res) => {
         m.med_name,
         d.qty
       FROM 
-        dbcpsc_admin_cc.tbpreorder_detail d
+        tbpreorder_detail d
       JOIN 
-        dbcpsc_admin_cc.tbmedicines m ON d.med_id = m.med_id
+        tbmedicines m ON d.med_id = m.med_id
       ${preorder_id ? "WHERE d.preorder_id = ?" : ""}
     `;
 
@@ -194,7 +194,7 @@ router.put("/cancel/:id", async (req, res) => {
   const preorderId = req.params.id;
 
   const updateStatusSQL = `
-    UPDATE dbcpsc_admin_cc.tbpreorder
+    UPDATE tbpreorder
     SET status = 'CANCEL'
     WHERE preorder_id = ?
   `;

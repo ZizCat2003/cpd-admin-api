@@ -1,355 +1,322 @@
+const express = require("express");
+const router = express.Router();
+const db = require("../../db");
 
-// ✅ POST - สร้าง import ใหม่ (รองรับการอัพโลดไฟล์)
-// router.post("/", upload.single('file'), (req, res) => {
-//   try {
-//     const { im_id, im_date, preorder_id, emp_id, note } = req.body;
+// ✅ เพิ่ม route ใหม่ใน router
+// GET - ดึง detail_id ล่าสุดจากฐานข้อมูล
+router.get("/get-last-detail-id", (req, res) => {
+  const query = `
+    SELECT MAX(detail_id) as lastDetailId 
+    FROM tbimport_detail
+  `;
 
-//     // ✅ เช็คว่ามีไฟล์หรือไม่
-//     let fileName = null;
-//     if (req.file) {
-//       fileName = req.file.filename;
-//     }
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ 
+        error: "ไม่สามารถดึงข้อมูล detail_id ล่าสุดได้", 
+        details: err 
+      });
+    }
 
-//     // ✅ ตรวจสอบข้อมูลที่จำเป็น
-//     if (!im_id || !im_date || !emp_id) {
-//       return res.status(400).json({
-//         error: "ຂໍ້ມູນບໍ່ຄົບຖ້ວນ",
-//         message: "ກະລຸນາເລືອກ im_id, im_date ແລະ emp_id"
-//       });
-//     }
+    // ถ้าไม่มีข้อมูลในตาราง ให้ return 0
+    const lastDetailId = results[0]?.lastDetailId || 0;
+   
+    res.status(200).json({ 
+      lastDetailId: lastDetailId,
+      nextDetailId: lastDetailId + 1
+    });
+  });
+});
 
-//     const query = `
-//       INSERT INTO tbimport (im_id, im_date, preorder_id, file, emp_id_create, note)
-//       VALUES (?, ?, ?, ?, ?, ?)
-//     `;
+// POST - เพิ่มข้อมูล import detail และอัปเดตจำนวนยา
+router.post("/import-detail", (req, res) => {
+  const { detail_id, im_id, med_id, qty, expired_date } = req.body;
 
-//     db.query(query, [im_id, im_date, preorder_id || null, fileName, emp_id, note], (err, result) => {
-//       if (err) {
-//         console.error("Database error:", err);
+  // เริ่ม transaction
+  db.beginTransaction((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Transaction failed", details: err });
+    }
 
-//         // ✅ ลบไฟล์ที่อัพโลดแล้วถ้าเกิดข้อผิดพลาดในฐานข้อมูล
-//         if (fileName) {
-//           const filePath = path.join(uploadDir, fileName);
-//           if (fs.existsSync(filePath)) {
-//             fs.unlinkSync(filePath);
-//           }
-//         }
-//         return res.status(500).json({
-//           error: "Insert import failed",
-//           details: err.message
-//         });
-//       }
-//       // ถ้ามี preorder_id ให้อัปเดตสถานะเป็น 'ສຳເລັດ'
-//       if (preorder_id) {
-//         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
-//         db.query(updateStatusQuery, ['ສຳເລັດ', preorder_id]);
-//       }
+    // 1. เพิ่มข้อมูลใน tbimport_detail
+    const insertQuery = `
+      INSERT INTO tbimport_detail (detail_id, im_id, med_id, qty, expired_date)
+      VALUES (?, ?, ?, ?, ?)
+    `;
 
-//       res.status(200).json({
-//         message: "Insert import success ✅",
-//         data: {
-//           im_id,
-//           im_date,
-//           preorder_id: preorder_id || null,
-//           file: fileName,
-//           emp_id_create: emp_id,
-//           note
-//         }
-//       });
-//     });
+    db.query(insertQuery, [detail_id, im_id, med_id, qty, expired_date], (err) => {
+      if (err) {
+        return db.rollback(() => {
+          res.status(500).json({ error: "Insert import detail failed", details: err });
+        });
+      }
 
-//   } catch (error) {
-//     console.error("Server error:", error);
-//     res.status(500).json({
-//       error: "Server error",
-//       details: error.message
-//     });
-//   }
-// });
+      // 2. อัปเดตจำนวนยาในตารางยา (สมมติว่าตารางยาชื่อ tbmedicine)
+      const updateMedicineQuery = `
+        UPDATE tbmedicines 
+        SET qty = qty + ? 
+        WHERE med_id = ?
+      `;
 
-// ✅ GET - รับข้อมูล import ทั้งหมด
-// router.get("/", (req, res) => {
-//   const query = `
-//     SELECT 
-//       im_id,
-//       im_date,
-//       preorder_id,
-//       file,
-//       emp_id_create,
-//       note
-//     FROM tbimport 
-//   `;
+      db.query(updateMedicineQuery, [qty, med_id], (err, result) => {
+        if (err) {
+          return db.rollback(() => {
+            res.status(500).json({ error: "Update medicine quantity failed", details: err });
+          });
+        }
 
-//   db.query(query, (err, results) => {
-//     if (err) {
-//       console.error("Database error:", err);
-//       return res.status(500).json({
-//         error: "Get import failed",
-//         details: err.message
-//       });
-//     }
-//     res.status(200).json({ data: results });
-//   });
-// });
+        // ตรวจสอบว่ามียาตัวนี้ในระบบหรือไม่
+        if (result.affectedRows === 0) {
+          return db.rollback(() => {
+            res.status(404).json({ error: "ไม่พบยาที่ต้องการอัปเดต", med_id: med_id });
+          });
+        }
 
-// ✅ GET - รับข้อมูล import ตาม ID
-// router.get("/import/:id", (req, res) => {
-//   const { id } = req.params;
+        // Commit transaction ถ้าทุกอย่างสำเร็จ
+        db.commit((err) => {
+          if (err) {
+            return db.rollback(() => {
+              res.status(500).json({ error: "Transaction commit failed", details: err });
+            });
+          }
 
-//   const query = "SELECT * FROM tbimport WHERE im_id = ?";
+          res.status(200).json({ 
+            message: "Import detail และอัปเดตจำนวนยาสำเร็จ ✅",
+            detail_id: detail_id,
+            med_id: med_id,
+            added_qty: qty
+          });
+        });
+      });
+    });
+  });
+});
 
-//   db.query(query, [id], (err, results) => {
-//     if (err) {
-//       console.error("Database error:", err);
-//       return res.status(500).json({
-//         error: "Get import failed",
-//         details: err.message
-//       });
-//     }
+// ✅ PUT - อัปเดต import detail และปรับจำนวนยา
+router.put("/import-detail/:detail_id", (req, res) => {
+  const { detail_id } = req.params;
+  const { qty: new_qty, expired_date } = req.body;
 
-//     if (results.length === 0) {
-//       return res.status(404).json({
-//         error: "Import not found",
-//         message: "ไม่พบข้อมูล import ที่ระบุ"
-//       });
-//     }
+  // เริ่ม transaction
+  db.beginTransaction((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Transaction failed", details: err });
+    }
 
-//     res.status(200).json({ data: results[0] });
-//   });
-// });
+    // 1. ดึงข้อมูลเก่าก่อน
+    const getOldDataQuery = `
+      SELECT med_id, qty as old_qty 
+      FROM tbimport_detail 
+      WHERE detail_id = ?
+    `;
 
-// ✅ PUT - อัพเดทข้อมูล import
-// router.put("/:id", upload.single('file'), (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { im_date, preorder_id, emp_id } = req.body;
+    db.query(getOldDataQuery, [detail_id], (err, results) => {
+      if (err) {
+        return db.rollback(() => {
+          res.status(500).json({ error: "Get old data failed", details: err });
+        });
+      }
 
-//     // ✅ ดึงข้อมูลเดิมก่อน
-//     db.query("SELECT * FROM tbimport WHERE im_id = ?", [id], (err, results) => {
-//       if (err) {
-//         return res.status(500).json({
-//           error: "Database error",
-//           details: err.message
-//         });
-//       }
+      if (results.length === 0) {
+        return db.rollback(() => {
+          res.status(404).json({ error: "ไม่พบข้อมูล import detail" });
+        });
+      }
 
-//       if (results.length === 0) {
-//         return res.status(404).json({
-//           error: "Import not found",
-//           message: "ไม่พบข้อมูล import ที่ระบุ"
-//         });
-//       }
+      const { med_id, old_qty } = results[0];
+      const qty_difference = new_qty - old_qty;
 
-//       const oldData = results[0];
-//       let fileName = oldData.file; // ใช้ไฟล์เดิม
+      // 2. อัปเดต import detail
+      const updateDetailQuery = `
+        UPDATE tbimport_detail 
+        SET qty = ?, expired_date = ?
+        WHERE detail_id = ?
+      `;
 
-//       // ✅ ถ้ามีไฟล์ใหม่ ให้ลบไฟล์เดิมและใช้ไฟล์ใหม่
-//       if (req.file) {
-//         // ลบไฟล์เดิม
-//         if (oldData.file) {
-//           const oldFilePath = path.join(uploadDir, oldData.file);
-//           if (fs.existsSync(oldFilePath)) {
-//             fs.unlinkSync(oldFilePath);
-//           }
-//         }
-//         fileName = req.file.filename;
-//       }
+      db.query(updateDetailQuery, [new_qty, expired_date, detail_id], (err) => {
+        if (err) {
+          return db.rollback(() => {
+            res.status(500).json({ error: "Update import detail failed", details: err });
+          });
+        }
 
-//       const updateQuery = `
-//         UPDATE tbimport 
-//         SET im_date = ?, preorder_id = ?, file = ?, emp_id_create = ?, note = ?
-//         WHERE im_id = ?
-//       `;
+        // 3. ปรับจำนวนยาตามผลต่าง
+        const updateMedicineQuery = `
+          UPDATE tbmedicine 
+          SET quantity = quantity + ? 
+          WHERE med_id = ?
+        `;
 
-//       db.query(updateQuery, [im_date, preorder_id || null, fileName, emp_id, note, id], (err) => {
-//         if (err) {
-//           console.error("Update error:", err);
-//           return res.status(500).json({
-//             error: "Update import failed",
-//             details: err.message
-//           });
-//         }
+        db.query(updateMedicineQuery, [qty_difference, med_id], (err) => {
+          if (err) {
+            return db.rollback(() => {
+              res.status(500).json({ error: "Update medicine quantity failed", details: err });
+            });
+          }
 
-//         res.status(200).json({
-//           message: "Update import success ✅",
-//           data: {
-//             im_id: id,
-//             im_date,
-//             preorder_id: preorder_id || null,
-//             file: fileName,
-//             emp_id_create: emp_id,
-//             note: note
-//           }
-//         });
-//       });
-//     });
+          // Commit transaction
+          db.commit((err) => {
+            if (err) {
+              return db.rollback(() => {
+                res.status(500).json({ error: "Transaction commit failed", details: err });
+              });
+            }
 
-//   } catch (error) {
-//     console.error("Server error:", error);
-//     res.status(500).json({
-//       error: "Server error",
-//       details: error.message
-//     });
-//   }
-// });
+            res.status(200).json({ 
+              message: "อัปเดต import detail และจำนวนยาสำเร็จ ✅",
+              detail_id: detail_id,
+              old_qty: old_qty,
+              new_qty: new_qty,
+              qty_difference: qty_difference
+            });
+          });
+        });
+      });
+    });
+  });
+});
 
-// ✅ DELETE - ลบข้อมูล import
-// router.delete("/import/:id", (req, res) => {
-//   const { id } = req.params;
+// ดึงรายละเอียดนำเข้าตาม im_id
+router.get("/import-detail/:im_id", (req, res) => {
+  const { im_id } = req.params;
 
-//   // ✅ ดึงข้อมูลก่อนลบเพื่อลบไฟล์ด้วย
-//   db.query("SELECT file, preorder_id FROM tbimport WHERE im_id = ?", [id], (err, results) => {
-//     if (err) {
-//       return res.status(500).json({
-//         error: "Database error",
-//         details: err.message
-//       });
-//     }
+  const query = `
+    SELECT * FROM tbimport_detail WHERE im_id = ?
+    ORDER BY detail_id
+  `;
 
-//     if (results.length === 0) {
-//       return res.status(404).json({
-//         error: "Import not found",
-//         message: "ไม่พบข้อมูล import ที่ระบุ"
-//       });
-//     }
+  db.query(query, [im_id], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າໄດ້",
+        details: err.message
+      });
+    }
 
-//     const fileName = results[0].file;
-//     const preorder_id = results[0].preorder_id; // ✅ ดึง preorder_id จากผลลัพธ์
+    res.status(200).json({
+      message: "ດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າສຳເລັດ",
+      data: results
+    });
+  });
+});
 
-//     // ✅ ลบข้อมูลจากฐานข้อมูล
-//     db.query("DELETE FROM tbimport WHERE im_id = ?", [id], (err) => {
-//       if (err) {
-//         return res.status(500).json({
-//           error: "Delete import failed",
-//           details: err.message
-//         });
-//       }
+// ดึงรายละเอียดนำเข้าทั้งหมด
+router.get("/import-detail", (req, res) => {
+  const query = `
+    SELECT * FROM tbimport_detail
+  `;
 
-//       // ✅ ลบไฟล์ถ้ามี
-//       if (fileName) {
-//         const filePath = path.join(uploadDir, fileName);
-//         if (fs.existsSync(filePath)) {
-//           fs.unlinkSync(filePath);
-//         }
-//       }
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າໄດ້",
+        details: err.message
+      });
+    }
 
-//       // ✅ ถ้ามี preorder_id ให้อัปเดตสถานะเป็น 'ລໍຖ້າຈັດສົ່ງ'
-//       if (preorder_id) {
-//         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
-//         db.query(updateStatusQuery, ['ລໍຖ້າຈັດສົ່ງ', preorder_id], (err) => {
-//           if (err) {
-//             console.error("Failed to update preorder status:", err.message);
-//           }
-//           // ✅ ไม่ต้องรอการอัปเดต status ก็สามารถส่ง response ได้
-//         });
-//       }
+    res.status(200).json({
+      message: "ດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າສຳເລັດ",
+      data: results
+    });
+  });
+});
 
-//       res.status(200).json({
-//         message: "Delete import success ✅"
-//       });
-//     });
-//   });
-// });
+// ✅ DELETE - ลบ import detail และลดจำนวนยา
+router.delete("/import-detail/:detail_id", (req, res) => {
+  const { detail_id } = req.params;
 
+  console.log('Attempting to delete detail_id:', detail_id);
 
-// เพิ่ม route ใหม่สำหรับการดูไฟล์ (แทนที่จะดาวน์โหลด)
-// router.get("/view/:filename", (req, res) => {
-//   const { filename } = req.params;
-//   const filePath = path.join(uploadDir, filename);
+  // ตรวจสอบว่า detail_id เป็นตัวเลข
+  if (!detail_id || isNaN(detail_id)) {
+    return res.status(400).json({ 
+      error: "detail_id ต้องเป็นตัวเลข" 
+    });
+  }
 
-//   // ✅ ตรวจสอบว่าไฟล์มีอยู่จริง
-//   if (!fs.existsSync(filePath)) {
-//     return res.status(404).json({
-//       error: "File not found",
-//       message: "ไม่พบไฟล์ที่ระบุ"
-//     });
-//   }
+  // เริ่ม transaction
+  db.beginTransaction((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Transaction failed", details: err });
+    }
 
-//   // ✅ กำหนด Content-Type ตามประเภทไฟล์
-//   const ext = path.extname(filename).toLowerCase();
-//   let contentType = 'application/octet-stream';
+    // 1. ดึงข้อมูลก่อนลบ
+    const getDataQuery = `
+      SELECT med_id, qty 
+      FROM tbimport_detail 
+      WHERE detail_id = ?
+    `;
 
-//   switch (ext) {
-//     case '.pdf':
-//       contentType = 'application/pdf';
-//       break;
-//     case '.jpg':
-//     case '.jpeg':
-//       contentType = 'image/jpeg';
-//       break;
-//     case '.png':
-//       contentType = 'image/png';
-//       break;
-//     case '.doc':
-//       contentType = 'application/msword';
-//       break;
-//     case '.docx':
-//       contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-//       break;
-//     case '.xls':
-//       contentType = 'application/vnd.ms-excel';
-//       break;
-//     case '.xlsx':
-//       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-//       break;
-//   }
+    db.query(getDataQuery, [parseInt(detail_id)], (err, results) => {
+      if (err) {
+        return db.rollback(() => {
+          res.status(500).json({ error: "Get data failed", details: err });
+        });
+      }
 
-//   // ✅ ตั้งค่า header เพื่อให้เบราว์เซอร์เปิดไฟล์แทนที่จะดาวน์โหลด
-//   res.setHeader('Content-Type', contentType);
-//   res.setHeader('Content-Disposition', 'inline'); // สำคัญ! ใช้ 'inline' แทน 'attachment'
+      if (results.length === 0) {
+        return db.rollback(() => {
+          res.status(404).json({ 
+            error: "ไม่พบข้อมูลที่ต้องการลบ",
+            detail_id: detail_id
+          });
+        });
+      }
 
-//   // ✅ ส่งไฟล์
-//   res.sendFile(filePath, (err) => {
-//     if (err) {
-//       console.error("View file error:", err);
-//       res.status(500).json({
-//         error: "View file failed",
-//         details: err.message
-//       });
-//     }
-//   });
-// });
+      const { med_id, qty } = results[0];
 
-// ✅ เก็บ route เดิมไว้สำหรับการดาวน์โหลด (ถ้าต้องการ)
-// router.get("/download/:filename", (req, res) => {
-//   const { filename } = req.params;
-//   const filePath = path.join(uploadDir, filename);
+      // 2. ลบข้อมูลจาก tbimport_detail
+      const deleteQuery = `
+        DELETE FROM tbimport_detail 
+        WHERE detail_id = ?
+      `;
 
-//   if (!fs.existsSync(filePath)) {
-//     return res.status(404).json({
-//       error: "File not found",
-//       message: "ไม่พบไฟล์ที่ระบุ"
-//     });
-//   }
+      db.query(deleteQuery, [parseInt(detail_id)], (err, result) => {
+        if (err) {
+          return db.rollback(() => {
+            res.status(500).json({ error: "Delete import detail failed", details: err });
+          });
+        }
 
-//   // ✅ ส่งไฟล์ให้ดาวน์โหลด
-//   res.download(filePath, (err) => {
-//     if (err) {
-//       console.error("Download error:", err);
-//       res.status(500).json({
-//         error: "Download failed",
-//         details: err.message
-//       });
-//     }
-//   });
-// });
+        // 3. ลดจำนวนยาในตารางยา
+        const updateMedicineQuery = `
+          UPDATE tbmedicines 
+          SET qty = qty - ? 
+          WHERE med_id = ?
+        `;
 
+        db.query(updateMedicineQuery, [qty, med_id], (err) => {
+          if (err) {
+            return db.rollback(() => {
+              res.status(500).json({ error: "Update medicine quantity failed", details: err });
+            });
+          }
 
+          // Commit transaction
+          db.commit((err) => {
+            if (err) {
+              return db.rollback(() => {
+                res.status(500).json({ error: "Transaction commit failed", details: err });
+              });
+            }
 
-// Insert image details into the database
-// const query = 'UPDATE tbl_invoice_package SET url = ?, file_name = ? WHERE id = ?';
+            console.log(`Successfully deleted detail_id: ${detail_id}, reduced medicine qty: ${qty}`);
+            
+            res.status(200).json({ 
+              message: "Delete import detail และปรับจำนวนยาสำเร็จ ✅",
+              detail_id: parseInt(detail_id),
+              med_id: med_id,
+              reduced_qty: qty,
+              affectedRows: result.affectedRows
+            });
+          });
+        });
+      });
+    });
+  });
+});
 
-// db.execute(query, [IP, filepath, invoiceId], (err, results) => {
-//   if (err) {
-//     console.error('Error inserting data into database:', err);
-//     return res.status(400).json({
-//       success: false,
-//       message: 'Error: Could not save image details to the database.' + err,
-//     });
-//   }
-//   res.status(200).json({
-//     success: true,
-//     message: 'Image uploaded and saved to database successfully!',
-//     imageUrl: IP + imagePath,
-//   });
-// });
+module.exports = router;

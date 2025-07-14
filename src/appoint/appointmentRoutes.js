@@ -2,23 +2,27 @@ const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-
 router.post('/appointment', (req, res) => {
-    const { appoint_id, date_addmintted, status, description, emp_id, patient_id } = req.body;
-  
-    const query = `
-      INSERT INTO tbappointment (appoint_id, date_addmintted, status, description, emp_id, patient_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-  
-    db.query(query, [appoint_id, date_addmintted, status, description, emp_id, patient_id], (err, result) => {
-      if (err) {
-        return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມນັດໝາຍ ❌", details: err });
-      }
-      res.status(201).json({ message: "ເພີ່ມນັດໝາຍສຳເລັດ ✅", appoint_id: appoint_id });
-    });
+  const { appoint_id, date_addmintted, status, description, emp_id, patient_id } = req.body;
+
+  const dateLocal = new Date(date_addmintted);
+  const dateUTC = new Date(dateLocal.getTime() - dateLocal.getTimezoneOffset() * 60000)
+                  .toISOString()
+                  .slice(0, 19)
+                  .replace('T', ' ');
+
+  const query = `
+    INSERT INTO tbappointment (appoint_id, date_addmintted, status, description, emp_id, patient_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(query, [appoint_id, dateUTC, status, description, emp_id, patient_id], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມນັດໝາຍ ❌", details: err });
+    }
+    res.status(201).json({ message: "ເພີ່ມນັດໝາຍສຳເລັດ ✅", appoint_id: appoint_id });
   });
-  
+});
 
 
 // ✅ ดึงนัดหมายทั้งหมด
