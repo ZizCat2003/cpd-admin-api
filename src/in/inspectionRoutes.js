@@ -241,7 +241,7 @@ router.post("/inspection", async (req, res) => {
 
 router.put("/inspection/:id", async (req, res) => {
   const { id } = req.params;
- const { diseases_now, symptom, checkup, note, detailed, emp_id_create, emp_id_updated } = req.body;
+ const { diseases_now, symptom, checkup, note, detailed, emp_id_create, emp_id_updated,diseases } = req.body;
 
 const updateInspectionSQL = `
   UPDATE tbinspection
@@ -250,6 +250,7 @@ const updateInspectionSQL = `
     symptom = ?,
     checkup = ?,
     note = ?,
+    diseases = ?,
     emp_id_create = ?,     
     emp_id_updated = ?    
   WHERE in_id = ?
@@ -290,6 +291,7 @@ const updateInspectionSQL = `
       symptom,
       checkup,
       note,
+      diseases,
       emp_id_create || null,   
       emp_id_updated || null,  
       id

@@ -138,6 +138,7 @@ const getInspectionWithPatient = (in_id) => {
       i.diseases_now,
       i.symptom,
       i.checkup,
+      i.diseases,
       i.note
     FROM 
       tbinspection i
