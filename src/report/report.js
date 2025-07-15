@@ -8,14 +8,13 @@ router.get("/patient/:id", async (req, res) => {
 
   const select_patient = `SELECT * FROM tbpatient WHERE patient_id = ?`;
   const select_inspection = `SELECT * FROM tbinspection WHERE patient_id = ?`;
+  const select_invoice = `SELECT invoice_id, in_id, total FROM tbinvoice WHERE in_id = ?`;
+  const select_payments = `SELECT pay_id, invoice_id, paid_amount FROM tbpayments WHERE invoice_id = ?`;
 
   try {
-    db.query(select_patient, [id], async (err, results) => {
+    db.query(select_patient, [id], (err, results) => {
       if (err) {
-        return res.status(500).json({
-          message: "Server error",
-          error: err.message,
-        });
+        return res.status(500).json({ message: "Server error", error: err.message });
       }
 
       if (results.length === 0) {
@@ -26,35 +25,63 @@ router.get("/patient/:id", async (req, res) => {
 
       db.query(select_inspection, [id], async (err, results) => {
         if (err) {
-          return res.status(500).json({
-            message: "Server error",
-            error: err.message,
-          });
+          return res.status(500).json({ message: "Server error", error: err.message });
         }
 
         if (results.length === 0) {
           return res.status(404).json({ message: "No inspection found" });
         }
 
-        const inspections = results;
+        const inspections = await Promise.all(results.map(async (inspection) => {
+          return new Promise((resolve) => {
+            db.query(select_invoice, [inspection.in_id], async (err, invoices) => {
+              if (err || invoices.length === 0) {
+                return resolve({ ...inspection, invoice: null });
+              }
+
+              const invoice = invoices[0];
+
+              db.query(select_payments, [invoice.invoice_id], (err, payments) => {
+                if (err) {
+                  return resolve({
+                    ...inspection,
+                    invoice: { total: null, total_paid: null, status_paid: null }
+                  });
+                }
+
+                const totalPaid = payments.reduce((sum, p) => sum + (Number(p.paid_amount) || 0), 0);
+
+                const total = invoice.total;
+                const status_paid = (total === totalPaid) ? "SUCCESS" : "DEBT";
+
+                resolve({
+                  ...inspection,
+                  invoice: {
+                    total: total ?? null,
+                    total_paid: totalPaid ?? null,
+                    status_paid: status_paid ?? null
+                  }
+                });
+              });
+            });
+          });
+        }));
 
         res.status(200).json({
           resultCode: "200",
           message: "Fetch successful",
           data: {
             patient: patient,
-            inspections: inspections,
-          },
+            inspections: inspections
+          }
         });
       });
     });
   } catch (error) {
-    return res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 router.get("/patient", async (req, res) => {
   const select_patients = `SELECT * FROM tbpatient ORDER BY patient_id`;
 

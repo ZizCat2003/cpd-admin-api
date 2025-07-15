@@ -3,9 +3,9 @@ POST http://localhost:4000/src/payment/payment HTTP/1.1
 Content-Type: application/json
 
 {
-    "invoice_id": "INV250608021223",
-    "paid_amount": 40000,
+    "invoice_id": "INV250706195743",
+    "paid_amount": 150000,
     "pay_type": "CASH",
-    "ex_id": "E01",
-    "ex_rate": 650
+    "ex_id": 1,
+    "ex_rate": 600
 }
