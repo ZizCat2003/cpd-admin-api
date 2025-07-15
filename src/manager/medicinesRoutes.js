@@ -1,288 +1,319 @@
-// medicinesRoutes.js
+
+
+
+
+
+
 const express = require("express");
 const router = express.Router();
 const db = require("../../db");
 
-router.get("/medicines", (req, res) => {
-  const query = "SELECT * FROM tbmedicines";
+// ฟังก์ชันสำหรับตรวจสอบและอัพเดทสถานะยาอัตโนมัติ
+const updateMedicineStatus = (qty) => {
+  if (qty <= 0) {
+    return 'ໝົດ';
+  } else if (qty <= 25) {
+    return 'ກຳລັງຈະໝົດ';
+  } else {
+    return 'ພຽງພໍ';
+  }
+};
+
+// ฟังก์ชันสำหรับอัพเดทสถานะในฐานข้อมูล
+const updateStatusInDatabase = (callback) => {
+  const selectQuery = "SELECT med_id, qty, status FROM tbmedicines";
+
+  db.query(selectQuery, (err, results) => {
+    if (err) {
+      console.error('Error selecting medicines for status update:', err);
+      return callback(err, null);
+    }
+
+    if (results.length === 0) {
+      return callback(null, { updated: 0, message: 'ບໍ່ມີຂໍ້ມູນຢາທີ່ຕ້ອງອັບເດດ' });
+    }
+
+    const needsUpdate = results.filter(medicine => {
+      const correctStatus = updateMedicineStatus(medicine.qty);
+      return medicine.status !== correctStatus;
+    });
+
+    if (needsUpdate.length === 0) {
+      return callback(null, { updated: 0, message: 'ສະຖານະຢາທັງໝົດຖືກຕ້ອງແລ້ວ' });
+    }
+
+    let updateCount = 0;
+    let errors = [];
+
+    needsUpdate.forEach((medicine, index) => {
+      const newStatus = updateMedicineStatus(medicine.qty);
+      const updateQuery = "UPDATE tbmedicines SET status = ? WHERE med_id = ?";
+
+      db.query(updateQuery, [newStatus, medicine.med_id], (updateErr, updateResult) => {
+        if (updateErr) {
+          errors.push({ med_id: medicine.med_id, error: updateErr.message });
+        } else {
+          updateCount++;
+          console.log(`Updated ${medicine.med_id}: ${medicine.status} -> ${newStatus}`);
+        }
+
+        if (index === needsUpdate.length - 1) {
+          if (errors.length > 0) {
+            callback(errors, { updated: updateCount, total: needsUpdate.length });
+          } else {
+            callback(null, { updated: updateCount, total: needsUpdate.length });
+          }
+        }
+      });
+    });
+  });
+};
+
+// ✅ ยาใกล้หมด
+router.get("/medicinesWang", (req, res) => {
+  const query = `
+    SELECT m.*, t.type_name 
+    FROM tbmedicines m 
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id 
+    WHERE m.qty <= 25
+  `;
   db.query(query, (err, results) => {
     if (err) {
-      return res
-        .status(500)
-        .json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
+      return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
     }
     res.status(200).json({ message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", data: results });
   });
 });
 
-// router.get("/medicines/:id", (req, res) => {
-//     const { id } = req.params;
+// GET all medicines with auto status update
+router.get("/medicines", (req, res) => {
+  updateStatusInDatabase((updateErr, updateResult) => {
+    const query = "SELECT * FROM tbmedicines ORDER BY med_id ASC";
+    db.query(query, (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
+      }
+      res.status(200).json({
+        message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅",
+        data: results,
+        statusUpdateInfo: updateResult
+      });
+    });
+  });
+});
 
-//     const query = "SELECT * FROM tbmedicines WHERE med_id = ?";
-//     db.query(query, [id], (err, results) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
-//         }
-//         if (results.length === 0) {
-//             return res.status(404).json({ message: "ບໍ່ພົບ id ນີ້" });
-//         }
-//         res.status(200).json({ message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", data: results[0] });
-//     });
-// });
+// GET medicine by ID
+router.get("/medicinesEdit/:id", (req, res) => {
+  const { id } = req.params;
+  const updateStatusInDatabase = (callback) => {
+    const updateQuery = "UPDATE tbmedicines SET status = status WHERE med_id = ?";
+    db.query(updateQuery, [id], callback);
+  };
 
+  updateStatusInDatabase((updateErr) => {
+    if (updateErr) {
+      return res.status(500).json({ error: "Update failed", details: updateErr.message });
+    }
+
+    const query = "SELECT * FROM tbmedicines WHERE med_id = ?";
+    db.query(query, [id], (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: "Database error", details: err.message });
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "Medicine not found", searchedId: id });
+      }
+      res.status(200).json({
+        resultCode: "200",
+        message: "Query Success",
+        data: results[0]
+      });
+    });
+  });
+});
+
+// GET medicines by type id
 router.get("/medicines/:id", (req, res) => {
   const { id } = req.params;
   try {
     const cate_type = id.toString().toUpperCase();
-    let query = `SELECT * FROM tbmedicines`;
-
+    let query = 'SELECT * FROM tbmedicines';
     if (id && id !== "") {
       query += ` WHERE medtype_id = ?`;
     }
-
     query += ` ORDER BY med_id ASC`;
 
     db.query(query, [cate_type], (err, results) => {
-      // console.log(query);
       if (err) {
         return res.status(500).json({ error: "Data not found", details: err });
       }
       if (results.length === 0) {
         return res.status(404).json({ message: "id not found" });
       }
-      res
-        .status(200)
-        .json({ resultCode: "200", message: "Query Success", data: results });
-    });
-  } catch (error) {
-    res.status(299).json({
-      message: "API Error",
-      error: error.message,
-    });
-  }
-});
-router.get("/medicine-list/:med_id", (req, res) => { 
-  const { med_id } = req.params;
-  console.log("Fetching medicine with med_id:", med_id);
-
-  try {
-    const query = `SELECT * FROM tbmedicines WHERE med_id = ?`;
-
-    db.query(query, [med_id], (err, results) => {
-      console.log("Query:", query);
-      console.log("Results:", results);
-      
-      if (err) {
-        console.error("Database error:", err);
-        return res.status(500).json({ error: "Database error", details: err });
-      }
-      
-      if (results.length === 0) {
-        return res.status(404).json({ message: "Medicine not found" });
-      }
-      
-      res.status(200).json({ 
-        resultCode: "200", 
-        message: "Query Success", 
-        data: results[0] 
+      res.status(200).json({
+        resultCode: "200",
+        message: "Query Success",
+        data: results
       });
     });
-  } catch (error) {
-    console.error("API Error:", error);
-    res.status(500).json({
-      message: "API Error",
-      error: error.message,
-    });
+  } catch (err) {
+    res.status(500).json({ message: "Unexpected error", error: err.message });
   }
 });
 
-
-
-router.post("/medicines", (req, res) => {
-  const {
-    med_id,
-    med_name,
-    qty,
-    status,
-    unit,
-    price,
-    expired,
-    medtype_id,
-    emp_id_create,
-    created_at,
-  } = req.body;
-
-  // เพิ่ม created_at ใน SQL query
+// GET next medicine ID
+router.get("/next-medicines-id", (req, res) => {
   const query = `
-        INSERT INTO tbmedicines (
-            med_id, med_name, qty, status, unit, price, expired,
-            medtype_id, emp_id_create, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-  console.log('Request body:', req.body);
-  console.log('Values to insert:', [
-    med_id,
-    med_name,
-    qty,
-    status,
-    unit,
-    price,
-    expired,
-    medtype_id,
-    emp_id_create,
-    created_at,
-  ]);
-
-  db.query(
-    query,
-    [
-      med_id,
-      med_name,
-      qty,
-      status,
-      unit,
-      price,
-      expired,
-      medtype_id,
-      emp_id_create,
-      created_at,
-    ],
-    (err, result) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res
-          .status(500)
-          .json({ 
-            error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", 
-            details: err.message,
-            sqlError: err.code 
-          });
-      }
-      
-      console.log('Insert result:', result);
-      res
-        .status(201)
-        .json({ 
-          message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", 
-          med_id: result.insertId,
-          data: result
-        });
+    SELECT med_id FROM tbmedicines 
+    WHERE med_id LIKE 'M%' 
+    ORDER BY med_id DESC LIMIT 1
+  `;
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
     }
-  );
-});
 
-
-router.put("/medicines/:id", (req, res) => {
-  const { id } = req.params;
-  const {
-    med_name,
-    qty,
-    status,
-    unit,
-    price,
-    expired,
-    medtype_id,
-    emp_id_updated,
-    update_by,
-  } = req.body;
-
-  const query = `
-        UPDATE tbmedicines
-        SET med_name = ?, qty = ?, status = ?, unit = ?, price = ?, expired = ?,
-            medtype_id = ?, emp_id_updated = ?, update_by = ?
-        WHERE med_id = ?
-    `;
-
-  db.query(
-    query,
-    [
-      med_name,
-      qty,
-      status,
-      unit,
-      price,
-      expired,
-      medtype_id,
-      emp_id_updated,
-      update_by,
-      id,
-    ],
-    (err, result) => {
-      if (err) {
-        return res
-          .status(500)
-          .json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນຢາ ❌", details: err });
-      }
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
-      }
-      res.status(200).json({ message: "ແກ້ໄຂຂໍ້ມູນຢາສຳເລັດ ✅" });
+    let nextId = "M01";
+    if (results.length > 0) {
+      const lastId = results[0].med_id;
+      const lastNumber = parseInt(lastId.substring(1));
+      const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+      nextId = `M${nextNumber}`;
     }
-  );
-});
 
-router.delete("/medicines/:id", (req, res) => {
-  const { id } = req.params;
-
-  const deleteFromImport = "DELETE FROM tbimport_detail WHERE med_id = ?";
-  const deleteFromPreorder = "DELETE FROM tbpreorder_detail WHERE med_id = ?";
-  const deleteFromMedicines = "DELETE FROM tbmedicines WHERE med_id = ?";
-
-  db.query(deleteFromImport, [id], (err) => {
-    if (err)
-      return res
-        .status(500)
-        .json({ error: "ລົບຂໍ້ມູນ import ບໍ່ສຳເລັດ", details: err });
-
-    db.query(deleteFromPreorder, [id], (err) => {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: "ລົບຂໍ້ມູນ preorder ບໍ່ສຳເລັດ", details: err });
-
-      db.query(deleteFromMedicines, [id], (err, result) => {
-        if (err)
-          return res
-            .status(500)
-            .json({ error: "ບໍ່ສາມາດລົບຂໍ້ມູນຢາ ❌", details: err });
-
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
-        }
-
-        res.status(200).json({ message: "ລົບຂໍ້ມູນຢາສຳເລັດ ✅" });
-      });
+    res.status(200).json({
+      message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅",
+      nextId: nextId
     });
   });
 });
 
-router.get("/next-medicines-id", (req, res) => {
-    const query = `
-        SELECT med_id FROM tbmedicines WHERE med_id LIKE 'M%' ORDER BY med_id DESC LIMIT 1
-    `;
-    
-    db.query(query, (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
-        }
-        
-        let nextId = "M01"; // รหัสเริ่มต้น
-        
-        if (results.length > 0) {
-            const lastId = results[0].med_id;
-            const lastNumber = parseInt(lastId.substring(1));
-            const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
-            nextId = `M${nextNumber}`;
-        }
-        
-        res.status(200).json({ 
-            message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
-            nextId: nextId 
-        });
+// POST new medicine
+router.post("/medicines", (req, res) => {
+  const {
+    med_id, med_name, qty, unit, price,
+    expired, medtype_id, emp_id_create, created_at
+  } = req.body;
+
+  const autoStatus = updateMedicineStatus(qty);
+
+  const query = `
+    INSERT INTO tbmedicines (
+      med_id, med_name, qty, status, unit, price, expired,
+      medtype_id, emp_id_create, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(query, [
+    med_id, med_name, qty, autoStatus, unit, price,
+    expired, medtype_id, emp_id_create, created_at
+  ], (err, result) => {
+    if (err) {
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌",
+        details: err.message,
+        sqlError: err.code
+      });
+    }
+
+    res.status(201).json({
+      message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅",
+      med_id: result.insertId,
+      status: autoStatus,
+      data: result
     });
+  });
 });
 
+// PUT update medicine
+router.put("/medicines/:id", (req, res) => {
+  const { id } = req.params;
+  const {
+    med_name, qty, unit, price, expired,
+    medtype_id, emp_id_updated, update_by
+  } = req.body;
+
+  const autoStatus = updateMedicineStatus(qty);
+
+  const query = `
+    UPDATE tbmedicines
+    SET med_name = ?, qty = ?, status = ?, unit = ?, price = ?, expired = ?,
+        medtype_id = ?, emp_id_updated = ?, update_by = ?
+    WHERE med_id = ?
+  `;
+
+  db.query(query, [
+    med_name, qty, autoStatus, unit, price, expired,
+    medtype_id, emp_id_updated, update_by, id
+  ], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນຢາ ❌", details: err });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
+    }
+    res.status(200).json({
+      message: "ແກ້ໄຂຂໍ້ມູນຢາສຳເລັດ ✅",
+      status: autoStatus
+    });
+  });
+});
+
+// DELETE medicine
+router.delete("/medicines/:id", (req, res) => {
+  const { id } = req.params;
+  const query = "DELETE FROM tbmedicines WHERE med_id = ?";
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດລຶບຂໍ້ມູນຢາ ❌",
+        details: err,
+      });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
+    }
+
+    res.status(200).json({ message: "ລຶບຂໍ້ມູນຢາສຳເລັດ ✅" });
+  });
+});
+
+// Bulk update status
+router.put("/medicines-bulk-status-update", (req, res) => {
+  updateStatusInDatabase((err, result) => {
+    if (err) {
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດອັບເດດສະຖານະຢາ ❌",
+        details: err
+      });
+    }
+
+    res.status(200).json({
+      message: "ອັບເດດສະຖານະຢາສຳເລັດ ✅",
+      ...result
+    });
+  });
+});
+
+// medicines + med type
+router.get("/medicinesPAPAG", (req, res) => {
+  const query = `
+    SELECT m.med_id, m.unit, m.med_name, t.medtype_id, t.type_name 
+    FROM tbmedicines m 
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌",
+        details: err
+      });
+    }
+    res.status(200).json({ message: "ສະແດງຂໍ້ມູນສຳເລັດ ✅", data: results });
+  });
+});
 
 module.exports = router;
 
@@ -291,161 +322,35 @@ module.exports = router;
 // const router = express.Router();
 // const db = require("../../db");
 
-// // ฟังก์ชันสำหรับตรวจสอบและอัพเดทสถานะยาอัตโนมัติ
-// const updateMedicineStatus = (qty) => {
-//   if (qty <= 0) {
-//     return 'ໝົດ';
-//   } else if (qty <= 20) {
-//     return 'ໃກ້ໝົດ';
-//   } else {
-//     return 'ຍັງມີ';
-//   }
-// };
-
-// // ฟังก์ชันสำหรับอัพเดทสถานะในฐานข้อมูล
-// const updateStatusInDatabase = (callback) => {
-//   const selectQuery = "SELECT med_id, qty, status FROM tbmedicines";
-  
-//   db.query(selectQuery, (err, results) => {
+// router.get("/medicines", (req, res) => {
+//   const query = "SELECT * FROM tbmedicines";
+//   db.query(query, (err, results) => {
 //     if (err) {
-//       console.error('Error selecting medicines for status update:', err);
-//       return callback(err, null);
+//       return res
+//         .status(500)
+//         .json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
 //     }
-
-//     if (results.length === 0) {
-//       return callback(null, { updated: 0, message: 'ບໍ່ມີຂໍ້ມູນຢາທີ່ຕ້ອງອັບເດດ' });
-//     }
-
-//     // หารายการที่ต้องอัพเดท
-//     const needsUpdate = results.filter(medicine => {
-//       const correctStatus = updateMedicineStatus(medicine.qty);
-//       return medicine.status !== correctStatus;
-//     });
-
-//     if (needsUpdate.length === 0) {
-//       return callback(null, { updated: 0, message: 'ສະຖານະຢາທັງໝົດຖືກຕ້ອງແລ້ວ' });
-//     }
-
-//     // อัพเดททีละรายการ
-//     let updateCount = 0;
-//     let errors = [];
-
-//     needsUpdate.forEach((medicine, index) => {
-//       const newStatus = updateMedicineStatus(medicine.qty);
-//       const updateQuery = "UPDATE tbmedicines SET status = ? WHERE med_id = ?";
-      
-//       db.query(updateQuery, [newStatus, medicine.med_id], (updateErr, updateResult) => {
-//         if (updateErr) {
-//           errors.push({ med_id: medicine.med_id, error: updateErr.message });
-//         } else {
-//           updateCount++;
-//           console.log(`Updated ${medicine.med_id}: ${medicine.status} -> ${newStatus}`);
-//         }
-
-//         // ตรวจสอบว่าทำงานครบแล้วหรือยัง
-//         if (index === needsUpdate.length - 1) {
-//           if (errors.length > 0) {
-//             callback(errors, { updated: updateCount, total: needsUpdate.length });
-//           } else {
-//             callback(null, { updated: updateCount, total: needsUpdate.length });
-//           }
-//         }
-//       });
-//     });
+//     res.status(200).json({ message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", data: results });
 //   });
-// };
+// });
 
-// // ✅ ดึงนัดหมายตาม appoint_id
-// // router.get("/medicinesWang", (req, res) => {
+// // router.get("/medicines/:id", (req, res) => {
 // //     const { id } = req.params;
 
-// //     const query = "SELECT * FROM tbmedicines WHERE status IN ('ໃກ້ໝົດ', 'ໝົດ')";
+// //     const query = "SELECT * FROM tbmedicines WHERE med_id = ?";
 // //     db.query(query, [id], (err, results) => {
 // //         if (err) {
 // //             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
 // //         }
-// //         res.status(200).json({ message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", data: results });
+// //         if (results.length === 0) {
+// //             return res.status(404).json({ message: "ບໍ່ພົບ id ນີ້" });
+// //         }
+// //         res.status(200).json({ message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", data: results[0] });
 // //     });
 // // });
 
-
-// // GET all medicines with auto status update
-// router.get("/medicines", (req, res) => {
-//   // อัพเดทสถานะในฐานข้อมูลก่อน
-//   updateStatusInDatabase((updateErr, updateResult) => {
-//     if (updateErr) {
-//     } else {
-
-//     }
-
-//     // ดึงข้อมูลจากฐานข้อมูล
-//     const query = "SELECT * FROM tbmedicines ORDER BY med_id ASC";
-//     db.query(query, (err, results) => {
-//       if (err) {
-//         return res
-//           .status(500)
-//           .json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
-//       }
-      
-//       res.status(200).json({ 
-//         message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", 
-//         data: results,
-//         statusUpdateInfo: updateResult
-//       });
-//     });
-//   });
-// });
-
-// // medicinesRoutes.js - แก้ไข GET medicines by ID
 // router.get("/medicines/:id", (req, res) => {
 //   const { id } = req.params;
-
-
-//   try {
-//     // อัพเดทสถานะในฐานข้อมูลก่อน
-//     updateStatusInDatabase((updateErr, updateResult) => {
-//       if (updateErr) {
-
-//       }
-
-//       // แก้ไข: ใช้ med_id โดยตรง ไม่ต้อง convert หรือเปลี่ยนแปลง
-//       let query = `SELECT * FROM tbmedicines WHERE med_id = ?`;
-
-//       db.query(query, [id], (err, results) => {
-//         if (err) {
-//           console.error('Database error:', err);
-//           return res.status(500).json({ 
-//             error: "Database error", 
-//             details: err.message 
-//           });
-//         }      
-        
-//         if (results.length === 0) {
-//           return res.status(404).json({ 
-//             message: "Medicine not found",
-//             searchedId: id 
-//           });
-//         }
-        
-//         // ส่งข้อมูลยาเดียว (ไม่ใช่ array)
-//         res.status(200).json({ 
-//           resultCode: "200", 
-//           message: "Query Success", 
-//           data: results[0] // ส่งแค่ object เดียว
-//         });
-//       });
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       message: "API Error",
-//       error: error.message,
-//     });
-//   }
-// });
-// router.get("/medicines/:id", (req, res) => {
-//   const { id } = req.params;
-//   //   console.log(id);
-
 //   try {
 //     const cate_type = id.toString().toUpperCase();
 //     let query = `SELECT * FROM tbmedicines`;
@@ -475,167 +380,49 @@ module.exports = router;
 //     });
 //   }
 // });
+// router.get("/medicine-list/:med_id", (req, res) => { 
+//   const { med_id } = req.params;
+//   console.log("Fetching medicine with med_id:", med_id);
 
+//   try {
+//     const query = `SELECT * FROM tbmedicines WHERE med_id = ?`;
 
-
-
-// // router.post("/medicines", (req, res) => {
-// //   const {
-// //     med_id,
-// //     med_name,
-// //     qty,
-// //     status,
-// //     unit,
-// //     price,
-// //     expired,
-// //     medtype_id,
-// //     emp_id_create,
-// //     created_at,
-// //   } = req.body;
-
-// //   // เพิ่ม created_at ใน SQL query
-// //   const query = `
-// //         INSERT INTO tbmedicines (
-// //             med_id, med_name, qty, status, unit, price, expired,
-// //             medtype_id, emp_id_create, created_at
-// //         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-// //     `;
-
-// //   console.log('Request body:', req.body);
-// //   console.log('Values to insert:', [
-// //     med_id,
-// //     med_name,
-// //     qty,
-// //     status,
-// //     unit,
-// //     price,
-// //     expired,
-// //     medtype_id,
-// //     emp_id_create,
-// //     created_at,
-// //   ]);
-
-// //   db.query(
-// //     query,
-// //     [
-// //       med_id,
-// //       med_name,
-// //       qty,
-// //       status,
-// //       unit,
-// //       price,
-// //       expired,
-// //       medtype_id,
-// //       emp_id_create,
-// //       created_at,
-// //     ],
-// //     (err, result) => {
-// //       if (err) {
-// //         console.error('Database error:', err);
-// //         return res
-// //           .status(500)
-// //           .json({ 
-// //             error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", 
-// //             details: err.message,
-// //             sqlError: err.code 
-// //           });
-// //       }
+//     db.query(query, [med_id], (err, results) => {
+//       console.log("Query:", query);
+//       console.log("Results:", results);
       
-// //       console.log('Insert result:', result);
-// //       res
-// //         .status(201)
-// //         .json({ 
-// //           message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", 
-// //           med_id: result.insertId,
-// //           data: result
-// //         });
-// //     }
-// //   );
-// // });
+//       if (err) {
+//         console.error("Database error:", err);
+//         return res.status(500).json({ error: "Database error", details: err });
+//       }
+      
+//       if (results.length === 0) {
+//         return res.status(404).json({ message: "Medicine not found" });
+//       }
+      
+//       res.status(200).json({ 
+//         resultCode: "200", 
+//         message: "Query Success", 
+//         data: results[0] 
+//       });
+//     });
+//   } catch (error) {
+//     console.error("API Error:", error);
+//     res.status(500).json({
+//       message: "API Error",
+//       error: error.message,
+//     });
+//   }
+// });
 
 
-// // // router.put("/medicines/:id", (req, res) => {
-// // //   const { id } = req.params;
-// // //   const {
-// // //     med_name,
-// // //     qty,
-// // //     status,
-// // //     unit,
-// // //     price,
-// // //     expired,
-// // //     medtype_id,
-// // //     emp_id_updated,
-// // //     update_by,
-// // //   } = req.body;
 
-// // //   const query = `
-// // //         UPDATE tbmedicines
-// // //         SET med_name = ?, qty = ?, status = ?, unit = ?, price = ?, expired = ?,
-// // //             medtype_id = ?, emp_id_updated = ?, update_by = ?
-// // //         WHERE med_id = ?
-// // //     `;
-
-// // //   db.query(
-// // //     query,
-// // //     [
-// // //       med_name,
-// // //       qty,
-// // //       status,
-// // //       unit,
-// // //       price,
-// // //       expired,
-// // //       medtype_id,
-// // //       emp_id_updated,
-// // //       update_by,
-// // //       id,
-// // //     ],
-// // //     (err, result) => {
-// // //       if (err) {
-// // //         return res
-// // //           .status(500)
-// // //           .json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນຢາ ❌", details: err });
-// // //       }
-// // //       if (result.affectedRows === 0) {
-// // //         return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
-// // //       }
-// // //       res.status(200).json({ message: "ແກ້ໄຂຂໍ້ມູນຢາສຳເລັດ ✅" });
-// // //     }
-// // //   );
-// // // });
-// // เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของยา
-// // router.get("/next-medicines-id", (req, res) => {
-// //     const query = `
-// //         SELECT med_id FROM tbmedicines WHERE med_id LIKE 'M%' ORDER BY med_id DESC LIMIT 1
-// //     `;
-    
-// //     db.query(query, (err, results) => {
-// //         if (err) {
-// //             return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
-// //         }
-        
-// //         let nextId = "M01"; // รหัสเริ่มต้น
-        
-// //         if (results.length > 0) {
-// //             const lastId = results[0].med_id;
-// //             const lastNumber = parseInt(lastId.substring(1));
-// //             const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
-// //             nextId = `M${nextNumber}`;
-// //         }
-        
-// //         res.status(200).json({ 
-// //             message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
-// //             nextId: nextId 
-// //         });
-// //     });
-// // });
-
-// // POST new medicine with auto status
 // router.post("/medicines", (req, res) => {
 //   const {
 //     med_id,
 //     med_name,
 //     qty,
-
+//     status,
 //     unit,
 //     price,
 //     expired,
@@ -644,9 +431,7 @@ module.exports = router;
 //     created_at,
 //   } = req.body;
 
-//   // คำนวณสถานะอัตโนมัติ
-//   const autoStatus = updateMedicineStatus(qty);
-
+//   // เพิ่ม created_at ใน SQL query
 //   const query = `
 //         INSERT INTO tbmedicines (
 //             med_id, med_name, qty, status, unit, price, expired,
@@ -655,7 +440,18 @@ module.exports = router;
 //     `;
 
 //   console.log('Request body:', req.body);
-//   console.log('Auto calculated status:', autoStatus);
+//   console.log('Values to insert:', [
+//     med_id,
+//     med_name,
+//     qty,
+//     status,
+//     unit,
+//     price,
+//     expired,
+//     medtype_id,
+//     emp_id_create,
+//     created_at,
+//   ]);
 
 //   db.query(
 //     query,
@@ -663,7 +459,7 @@ module.exports = router;
 //       med_id,
 //       med_name,
 //       qty,
-//       autoStatus,
+//       status,
 //       unit,
 //       price,
 //       expired,
@@ -689,7 +485,6 @@ module.exports = router;
 //         .json({ 
 //           message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", 
 //           med_id: result.insertId,
-//           status: autoStatus,
 //           data: result
 //         });
 //     }
@@ -697,47 +492,39 @@ module.exports = router;
 // });
 
 
-
-
-// // PUT update medicine with auto status
 // router.put("/medicines/:id", (req, res) => {
 //   const { id } = req.params;
 //   const {
 //     med_name,
 //     qty,
-
+//     status,
 //     unit,
 //     price,
 //     expired,
 //     medtype_id,
-//     emp_id_create,
-//     created_at,
+//     emp_id_updated,
+//     update_by,
 //   } = req.body;
-
-//   // คำนวณสถานะอัตโนมัติ
-//   const autoStatus = updateMedicineStatus(qty);
 
 //   const query = `
 //         UPDATE tbmedicines
 //         SET med_name = ?, qty = ?, status = ?, unit = ?, price = ?, expired = ?,
-//             medtype_id = ?, emp_id_create = ?, created_at = ?
+//             medtype_id = ?, emp_id_updated = ?, update_by = ?
 //         WHERE med_id = ?
 //     `;
-
-//   console.log('Auto calculated status for update:', autoStatus);
 
 //   db.query(
 //     query,
 //     [
 //       med_name,
 //       qty,
-//       autoStatus,
+//       status,
 //       unit,
 //       price,
 //       expired,
 //       medtype_id,
-//       emp_id_create,
-//       created_at,
+//       emp_id_updated,
+//       update_by,
 //       id,
 //     ],
 //     (err, result) => {
@@ -749,53 +536,585 @@ module.exports = router;
 //       if (result.affectedRows === 0) {
 //         return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
 //       }
-//       res.status(200).json({ 
-//         message: "ແກ້ໄຂຂໍ້ມູນຢາສຳເລັດ ✅",
-//         status: autoStatus
-//       });
+//       res.status(200).json({ message: "ແກ້ໄຂຂໍ້ມູນຢາສຳເລັດ ✅" });
 //     }
 //   );
 // });
 
-// // DELETE medicine
 // router.delete("/medicines/:id", (req, res) => {
 //   const { id } = req.params;
 
-//   const query = "DELETE FROM tbmedicines WHERE med_id = ?";
-//   db.query(query, [id], (err, result) => {
-//     if (err) {
-//       return res.status(500).json({
-//         error: "ບໍ່ສາມາດລຶບຂໍ້ມູນຢາ ❌",
-//         details: err,
+//   const deleteFromImport = "DELETE FROM tbimport_detail WHERE med_id = ?";
+//   const deleteFromPreorder = "DELETE FROM tbpreorder_detail WHERE med_id = ?";
+//   const deleteFromMedicines = "DELETE FROM tbmedicines WHERE med_id = ?";
+
+//   db.query(deleteFromImport, [id], (err) => {
+//     if (err)
+//       return res
+//         .status(500)
+//         .json({ error: "ລົບຂໍ້ມູນ import ບໍ່ສຳເລັດ", details: err });
+
+//     db.query(deleteFromPreorder, [id], (err) => {
+//       if (err)
+//         return res
+//           .status(500)
+//           .json({ error: "ລົບຂໍ້ມູນ preorder ບໍ່ສຳເລັດ", details: err });
+
+//       db.query(deleteFromMedicines, [id], (err, result) => {
+//         if (err)
+//           return res
+//             .status(500)
+//             .json({ error: "ບໍ່ສາມາດລົບຂໍ້ມູນຢາ ❌", details: err });
+
+//         if (result.affectedRows === 0) {
+//           return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
+//         }
+
+//         res.status(200).json({ message: "ລົບຂໍ້ມູນຢາສຳເລັດ ✅" });
 //       });
-//     }
-
-//     if (result.affectedRows === 0) {
-//       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
-//     }
-
-//     res.status(200).json({ message: "ລຶບຂໍ້ມູນຢາສຳເລັດ ✅" });
-//   });
-// });
-
-// // endpoint สำหรับอัพเดทสถานะยาทั้งหมดในฐานข้อมูลแบบ manual
-// router.put("/medicines-bulk-status-update", (req, res) => {
-//   updateStatusInDatabase((err, result) => {
-//     if (err) {
-//       return res.status(500).json({
-//         error: "ບໍ່ສາມາດອັບເດດສະຖານະຢາ ❌",
-//         details: err
-//       });
-//     }
-
-//     res.status(200).json({
-//       message: `ອັບເດດສະຖານະຢາສຳເລັດ ✅`,
-//       ...result
 //     });
 //   });
 // });
 
-
+// router.get("/next-medicines-id", (req, res) => {
+//     const query = `
+//         SELECT med_id FROM tbmedicines WHERE med_id LIKE 'M%' ORDER BY med_id DESC LIMIT 1
+//     `;
+    
+//     db.query(query, (err, results) => {
+//         if (err) {
+//             return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+//         }
+        
+//         let nextId = "M01"; // รหัสเริ่มต้น
+        
+//         if (results.length > 0) {
+//             const lastId = results[0].med_id;
+//             const lastNumber = parseInt(lastId.substring(1));
+//             const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+//             nextId = `M${nextNumber}`;
+//         }
+        
+//         res.status(200).json({ 
+//             message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+//             nextId: nextId 
+//         });
+//     });
+// });
 
 
 // module.exports = router;
+
+// // // medicinesRoutes.js
+// // const express = require("express");
+// // const router = express.Router();
+// // const db = require("../../db");
+
+// // // ฟังก์ชันสำหรับตรวจสอบและอัพเดทสถานะยาอัตโนมัติ
+// // const updateMedicineStatus = (qty) => {
+// //   if (qty <= 0) {
+// //     return 'ໝົດ';
+// //   } else if (qty <= 20) {
+// //     return 'ໃກ້ໝົດ';
+// //   } else {
+// //     return 'ຍັງມີ';
+// //   }
+// // };
+
+// // // ฟังก์ชันสำหรับอัพเดทสถานะในฐานข้อมูล
+// // const updateStatusInDatabase = (callback) => {
+// //   const selectQuery = "SELECT med_id, qty, status FROM tbmedicines";
+  
+// //   db.query(selectQuery, (err, results) => {
+// //     if (err) {
+// //       console.error('Error selecting medicines for status update:', err);
+// //       return callback(err, null);
+// //     }
+
+// //     if (results.length === 0) {
+// //       return callback(null, { updated: 0, message: 'ບໍ່ມີຂໍ້ມູນຢາທີ່ຕ້ອງອັບເດດ' });
+// //     }
+
+// //     // หารายการที่ต้องอัพเดท
+// //     const needsUpdate = results.filter(medicine => {
+// //       const correctStatus = updateMedicineStatus(medicine.qty);
+// //       return medicine.status !== correctStatus;
+// //     });
+
+// //     if (needsUpdate.length === 0) {
+// //       return callback(null, { updated: 0, message: 'ສະຖານະຢາທັງໝົດຖືກຕ້ອງແລ້ວ' });
+// //     }
+
+// //     // อัพเดททีละรายการ
+// //     let updateCount = 0;
+// //     let errors = [];
+
+// //     needsUpdate.forEach((medicine, index) => {
+// //       const newStatus = updateMedicineStatus(medicine.qty);
+// //       const updateQuery = "UPDATE tbmedicines SET status = ? WHERE med_id = ?";
+      
+// //       db.query(updateQuery, [newStatus, medicine.med_id], (updateErr, updateResult) => {
+// //         if (updateErr) {
+// //           errors.push({ med_id: medicine.med_id, error: updateErr.message });
+// //         } else {
+// //           updateCount++;
+// //           console.log(`Updated ${medicine.med_id}: ${medicine.status} -> ${newStatus}`);
+// //         }
+
+// //         // ตรวจสอบว่าทำงานครบแล้วหรือยัง
+// //         if (index === needsUpdate.length - 1) {
+// //           if (errors.length > 0) {
+// //             callback(errors, { updated: updateCount, total: needsUpdate.length });
+// //           } else {
+// //             callback(null, { updated: updateCount, total: needsUpdate.length });
+// //           }
+// //         }
+// //       });
+// //     });
+// //   });
+// // };
+
+// // // ✅ ดึงนัดหมายตาม appoint_id
+// // // router.get("/medicinesWang", (req, res) => {
+// // //     const { id } = req.params;
+
+// // //     const query = "SELECT * FROM tbmedicines WHERE status IN ('ໃກ້ໝົດ', 'ໝົດ')";
+// // //     db.query(query, [id], (err, results) => {
+// // //         if (err) {
+// // //             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
+// // //         }
+// // //         res.status(200).json({ message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", data: results });
+// // //     });
+// // // });
+
+
+// // // GET all medicines with auto status update
+// // router.get("/medicines", (req, res) => {
+// //   // อัพเดทสถานะในฐานข้อมูลก่อน
+// //   updateStatusInDatabase((updateErr, updateResult) => {
+// //     if (updateErr) {
+// //     } else {
+
+// //     }
+
+// //     // ดึงข้อมูลจากฐานข้อมูล
+// //     const query = "SELECT * FROM tbmedicines ORDER BY med_id ASC";
+// //     db.query(query, (err, results) => {
+// //       if (err) {
+// //         return res
+// //           .status(500)
+// //           .json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
+// //       }
+      
+// //       res.status(200).json({ 
+// //         message: "ສະແດງຂໍ້ມູນຢາສຳເລັດ ✅", 
+// //         data: results,
+// //         statusUpdateInfo: updateResult
+// //       });
+// //     });
+// //   });
+// // });
+
+// // // medicinesRoutes.js - แก้ไข GET medicines by ID
+// // router.get("/medicines/:id", (req, res) => {
+// //   const { id } = req.params;
+
+
+// //   try {
+// //     // อัพเดทสถานะในฐานข้อมูลก่อน
+// //     updateStatusInDatabase((updateErr, updateResult) => {
+// //       if (updateErr) {
+
+// //       }
+
+// //       // แก้ไข: ใช้ med_id โดยตรง ไม่ต้อง convert หรือเปลี่ยนแปลง
+// //       let query = `SELECT * FROM tbmedicines WHERE med_id = ?`;
+
+// //       db.query(query, [id], (err, results) => {
+// //         if (err) {
+// //           console.error('Database error:', err);
+// //           return res.status(500).json({ 
+// //             error: "Database error", 
+// //             details: err.message 
+// //           });
+// //         }      
+        
+// //         if (results.length === 0) {
+// //           return res.status(404).json({ 
+// //             message: "Medicine not found",
+// //             searchedId: id 
+// //           });
+// //         }
+        
+// //         // ส่งข้อมูลยาเดียว (ไม่ใช่ array)
+// //         res.status(200).json({ 
+// //           resultCode: "200", 
+// //           message: "Query Success", 
+// //           data: results[0] // ส่งแค่ object เดียว
+// //         });
+// //       });
+// //     });
+// //   } catch (error) {
+// //     res.status(500).json({
+// //       message: "API Error",
+// //       error: error.message,
+// //     });
+// //   }
+// // });
+// // router.get("/medicines/:id", (req, res) => {
+// //   const { id } = req.params;
+// //   //   console.log(id);
+
+// //   try {
+// //     const cate_type = id.toString().toUpperCase();
+// //     let query = `SELECT * FROM tbmedicines`;
+
+// //     if (id && id !== "") {
+// //       query += ` WHERE medtype_id = ?`;
+// //     }
+
+// //     query += ` ORDER BY med_id ASC`;
+
+// //     db.query(query, [cate_type], (err, results) => {
+// //       // console.log(query);
+// //       if (err) {
+// //         return res.status(500).json({ error: "Data not found", details: err });
+// //       }
+// //       if (results.length === 0) {
+// //         return res.status(404).json({ message: "id not found" });
+// //       }
+// //       res
+// //         .status(200)
+// //         .json({ resultCode: "200", message: "Query Success", data: results });
+// //     });
+// //   } catch (error) {
+// //     res.status(299).json({
+// //       message: "API Error",
+// //       error: error.message,
+// //     });
+// //   }
+// // });
+
+
+
+
+// // // router.post("/medicines", (req, res) => {
+// // //   const {
+// // //     med_id,
+// // //     med_name,
+// // //     qty,
+// // //     status,
+// // //     unit,
+// // //     price,
+// // //     expired,
+// // //     medtype_id,
+// // //     emp_id_create,
+// // //     created_at,
+// // //   } = req.body;
+
+// // //   // เพิ่ม created_at ใน SQL query
+// // //   const query = `
+// // //         INSERT INTO tbmedicines (
+// // //             med_id, med_name, qty, status, unit, price, expired,
+// // //             medtype_id, emp_id_create, created_at
+// // //         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+// // //     `;
+
+// // //   console.log('Request body:', req.body);
+// // //   console.log('Values to insert:', [
+// // //     med_id,
+// // //     med_name,
+// // //     qty,
+// // //     status,
+// // //     unit,
+// // //     price,
+// // //     expired,
+// // //     medtype_id,
+// // //     emp_id_create,
+// // //     created_at,
+// // //   ]);
+
+// // //   db.query(
+// // //     query,
+// // //     [
+// // //       med_id,
+// // //       med_name,
+// // //       qty,
+// // //       status,
+// // //       unit,
+// // //       price,
+// // //       expired,
+// // //       medtype_id,
+// // //       emp_id_create,
+// // //       created_at,
+// // //     ],
+// // //     (err, result) => {
+// // //       if (err) {
+// // //         console.error('Database error:', err);
+// // //         return res
+// // //           .status(500)
+// // //           .json({ 
+// // //             error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", 
+// // //             details: err.message,
+// // //             sqlError: err.code 
+// // //           });
+// // //       }
+      
+// // //       console.log('Insert result:', result);
+// // //       res
+// // //         .status(201)
+// // //         .json({ 
+// // //           message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", 
+// // //           med_id: result.insertId,
+// // //           data: result
+// // //         });
+// // //     }
+// // //   );
+// // // });
+
+
+// // // // router.put("/medicines/:id", (req, res) => {
+// // // //   const { id } = req.params;
+// // // //   const {
+// // // //     med_name,
+// // // //     qty,
+// // // //     status,
+// // // //     unit,
+// // // //     price,
+// // // //     expired,
+// // // //     medtype_id,
+// // // //     emp_id_updated,
+// // // //     update_by,
+// // // //   } = req.body;
+
+// // // //   const query = `
+// // // //         UPDATE tbmedicines
+// // // //         SET med_name = ?, qty = ?, status = ?, unit = ?, price = ?, expired = ?,
+// // // //             medtype_id = ?, emp_id_updated = ?, update_by = ?
+// // // //         WHERE med_id = ?
+// // // //     `;
+
+// // // //   db.query(
+// // // //     query,
+// // // //     [
+// // // //       med_name,
+// // // //       qty,
+// // // //       status,
+// // // //       unit,
+// // // //       price,
+// // // //       expired,
+// // // //       medtype_id,
+// // // //       emp_id_updated,
+// // // //       update_by,
+// // // //       id,
+// // // //     ],
+// // // //     (err, result) => {
+// // // //       if (err) {
+// // // //         return res
+// // // //           .status(500)
+// // // //           .json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນຢາ ❌", details: err });
+// // // //       }
+// // // //       if (result.affectedRows === 0) {
+// // // //         return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
+// // // //       }
+// // // //       res.status(200).json({ message: "ແກ້ໄຂຂໍ້ມູນຢາສຳເລັດ ✅" });
+// // // //     }
+// // // //   );
+// // // // });
+// // // เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของยา
+// // // router.get("/next-medicines-id", (req, res) => {
+// // //     const query = `
+// // //         SELECT med_id FROM tbmedicines WHERE med_id LIKE 'M%' ORDER BY med_id DESC LIMIT 1
+// // //     `;
+    
+// // //     db.query(query, (err, results) => {
+// // //         if (err) {
+// // //             return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+// // //         }
+        
+// // //         let nextId = "M01"; // รหัสเริ่มต้น
+        
+// // //         if (results.length > 0) {
+// // //             const lastId = results[0].med_id;
+// // //             const lastNumber = parseInt(lastId.substring(1));
+// // //             const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+// // //             nextId = `M${nextNumber}`;
+// // //         }
+        
+// // //         res.status(200).json({ 
+// // //             message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+// // //             nextId: nextId 
+// // //         });
+// // //     });
+// // // });
+
+// // // POST new medicine with auto status
+// // router.post("/medicines", (req, res) => {
+// //   const {
+// //     med_id,
+// //     med_name,
+// //     qty,
+
+// //     unit,
+// //     price,
+// //     expired,
+// //     medtype_id,
+// //     emp_id_create,
+// //     created_at,
+// //   } = req.body;
+
+// //   // คำนวณสถานะอัตโนมัติ
+// //   const autoStatus = updateMedicineStatus(qty);
+
+// //   const query = `
+// //         INSERT INTO tbmedicines (
+// //             med_id, med_name, qty, status, unit, price, expired,
+// //             medtype_id, emp_id_create, created_at
+// //         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+// //     `;
+
+// //   console.log('Request body:', req.body);
+// //   console.log('Auto calculated status:', autoStatus);
+
+// //   db.query(
+// //     query,
+// //     [
+// //       med_id,
+// //       med_name,
+// //       qty,
+// //       autoStatus,
+// //       unit,
+// //       price,
+// //       expired,
+// //       medtype_id,
+// //       emp_id_create,
+// //       created_at,
+// //     ],
+// //     (err, result) => {
+// //       if (err) {
+// //         console.error('Database error:', err);
+// //         return res
+// //           .status(500)
+// //           .json({ 
+// //             error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນຢາໄດ້ ❌", 
+// //             details: err.message,
+// //             sqlError: err.code 
+// //           });
+// //       }
+      
+// //       console.log('Insert result:', result);
+// //       res
+// //         .status(201)
+// //         .json({ 
+// //           message: "ເພີ່ມຂໍ້ມູນຢາສຳເລັດ ✅", 
+// //           med_id: result.insertId,
+// //           status: autoStatus,
+// //           data: result
+// //         });
+// //     }
+// //   );
+// // });
+
+
+
+
+// // // PUT update medicine with auto status
+// // router.put("/medicines/:id", (req, res) => {
+// //   const { id } = req.params;
+// //   const {
+// //     med_name,
+// //     qty,
+
+// //     unit,
+// //     price,
+// //     expired,
+// //     medtype_id,
+// //     emp_id_create,
+// //     created_at,
+// //   } = req.body;
+
+// //   // คำนวณสถานะอัตโนมัติ
+// //   const autoStatus = updateMedicineStatus(qty);
+
+// //   const query = `
+// //         UPDATE tbmedicines
+// //         SET med_name = ?, qty = ?, status = ?, unit = ?, price = ?, expired = ?,
+// //             medtype_id = ?, emp_id_create = ?, created_at = ?
+// //         WHERE med_id = ?
+// //     `;
+
+// //   console.log('Auto calculated status for update:', autoStatus);
+
+// //   db.query(
+// //     query,
+// //     [
+// //       med_name,
+// //       qty,
+// //       autoStatus,
+// //       unit,
+// //       price,
+// //       expired,
+// //       medtype_id,
+// //       emp_id_create,
+// //       created_at,
+// //       id,
+// //     ],
+// //     (err, result) => {
+// //       if (err) {
+// //         return res
+// //           .status(500)
+// //           .json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນຢາ ❌", details: err });
+// //       }
+// //       if (result.affectedRows === 0) {
+// //         return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
+// //       }
+// //       res.status(200).json({ 
+// //         message: "ແກ້ໄຂຂໍ້ມູນຢາສຳເລັດ ✅",
+// //         status: autoStatus
+// //       });
+// //     }
+// //   );
+// // });
+
+// // // DELETE medicine
+// // router.delete("/medicines/:id", (req, res) => {
+// //   const { id } = req.params;
+
+// //   const query = "DELETE FROM tbmedicines WHERE med_id = ?";
+// //   db.query(query, [id], (err, result) => {
+// //     if (err) {
+// //       return res.status(500).json({
+// //         error: "ບໍ່ສາມາດລຶບຂໍ້ມູນຢາ ❌",
+// //         details: err,
+// //       });
+// //     }
+
+// //     if (result.affectedRows === 0) {
+// //       return res.status(404).json({ message: "ບໍ່ພົບຂໍ້ມູນຢານີ້" });
+// //     }
+
+// //     res.status(200).json({ message: "ລຶບຂໍ້ມູນຢາສຳເລັດ ✅" });
+// //   });
+// // });
+
+// // // endpoint สำหรับอัพเดทสถานะยาทั้งหมดในฐานข้อมูลแบบ manual
+// // router.put("/medicines-bulk-status-update", (req, res) => {
+// //   updateStatusInDatabase((err, result) => {
+// //     if (err) {
+// //       return res.status(500).json({
+// //         error: "ບໍ່ສາມາດອັບເດດສະຖານະຢາ ❌",
+// //         details: err
+// //       });
+// //     }
+
+// //     res.status(200).json({
+// //       message: `ອັບເດດສະຖານະຢາສຳເລັດ ✅`,
+// //       ...result
+// //     });
+// //   });
+// // });
+
+
+
+
+// // module.exports = router;

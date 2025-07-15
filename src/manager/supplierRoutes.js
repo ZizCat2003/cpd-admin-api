@@ -1,213 +1,327 @@
+// // const express = require("express");
+// // const router = express.Router();
+// // const db = require("../../db"); 
+
+// // // ✅ เพิ่ม Supplier ใหม่
+// // router.post("/supplier", (req, res) => {
+// //     const { sup_id, company_name, address, phone, status } = req.body;
+
+// //     const query = `
+// //         INSERT INTO tbsupplier (sup_id, company_name, address, phone, status)
+// //         VALUES (?, ?, ?, ?, ?)
+// //     `;
+
+// //     db.query(query, [sup_id, company_name, address, phone, status], (err, result) => {
+// //         if (err) {
+// //             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນ Supplier ❌", details: err });
+// //         }
+// //         res.status(200).json({ message: "ເພີ່ມ Supplier ສຳເລັດ ✅", supplier_id: result.insertId });
+// //     });
+// // });
+
+// // // ✅ ดึงข้อมูล Supplier ทั้งหมด
+// // router.get("/supplier", (req, res) => {
+// //     const query = "SELECT * FROM tbsupplier";
+// //     db.query(query, (err, results) => {
+// //         if (err) {
+// //             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ Supplier ❌", details: err });
+// //         }
+// //         res.status(200).json({ message: "ສະແດງຂໍ້ມູນ Supplier ສຳເລັດ ✅", data: results });
+// //     });
+// // });
+
+// // // เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
+// // router.get("/next-supplier-id", (req, res) => {
+// //     const query = `
+// //         SELECT sup_id FROM tbsupplier WHERE sup_id LIKE 'SP%' ORDER BY sup_id DESC LIMIT 1
+// //     `;
+    
+// //     db.query(query, (err, results) => {
+// //         if (err) {
+// //             return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+// //         }
+        
+// //         let nextId = "SP01"; // รหัสเริ่มต้น
+        
+// //         if (results.length > 0) {
+// //             const lastId = results[0].sup_id;
+// //             const lastNumber = parseInt(lastId.substring(2));
+// //             const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+// //             nextId = `SP${nextNumber}`;
+// //         }
+        
+// //         res.status(200).json({ 
+// //             message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+// //             nextId: nextId 
+// //         });
+// //     });
+// // });
+
+// // // ✅ ดึงข้อมูล Supplier ตาม ID
+// // router.get("/supplier/:id", (req, res) => {
+// //     const { id } = req.params;
+
+// //     const query = "SELECT * FROM tbsupplier WHERE sup_id = ?";
+// //     db.query(query, [id], (err, results) => {
+// //         if (err) {
+// //             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ Supplier ❌", details: err });
+// //         }
+// //         if (results.length === 0) {
+// //             return res.status(404).json({ message: "ບໍ່ພົບ id Supplier ນີ້" });
+// //         }
+// //         res.status(200).json({ message: "ສະແດງຂໍ້ມູນ Supplier ສຳເລັດ ✅", data: results[0] });
+// //     });
+// // });
+
+// // // ✅ แก้ไขข้อมูล Supplier
+// // router.put("/supplier/:id", (req, res) => {
+// //     const { id } = req.params;
+// //     const { company_name, address, phone, status } = req.body;
+
+// //     const query = `
+// //         UPDATE tbsupplier
+// //         SET company_name = ?, address = ?, phone = ?, status = ?
+// //         WHERE sup_id = ?
+// //     `;
+
+// //     db.query(query, [company_name, address, phone, status, id], (err, result) => {
+// //         if (err) {
+// //             return res.status(500).json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນ Supplier ❌", details: err });
+// //         }
+// //         if (result.affectedRows === 0) {
+// //             return res.status(404).json({ message: "ບໍ່ພົບ Supplier ນີ້" });
+// //         }
+// //         res.status(200).json({ message: "ແກ້ໄຂຂໍ້ມູນ Supplier ສຳເລັດ ✅" });
+// //     });
+// // });
+
+// // // ✅ ลบข้อมูล Supplier
+// // router.delete("/supplier/:id", (req, res) => {
+// //     const { id } = req.params;
+
+// //     const query = "DELETE FROM tbsupplier WHERE sup_id = ?";
+// //     db.query(query, [id], (err, result) => {
+// //         if (err) {
+// //             return res.status(500).json({ error: "ບໍ່ສາມາດລຶບຂໍ້ມູນ Supplier ❌", details: err });
+// //         }
+// //         if (result.affectedRows === 0) {
+// //             return res.status(404).json({ message: "ບໍ່ພົບ id Supplier ນີ້" });
+// //         }
+// //         res.status(200).json({ message: "ລຶບຂໍ້ມູນ Supplier ສຳເລັດ ✅" });
+// //     });
+// // });
+
 // const express = require("express");
 // const router = express.Router();
-// const db = require("../../db"); 
+// const moment = require("moment");
+// const { queryAsync } = require("../../helper/queryfunction");
 
-// // ✅ เพิ่ม Supplier ใหม่
-// router.post("/supplier", (req, res) => {
-//     const { sup_id, company_name, address, phone, status } = req.body;
 
-//     const query = `
-//         INSERT INTO tbsupplier (sup_id, company_name, address, phone, status)
-//         VALUES (?, ?, ?, ?, ?)
-//     `;
-
-//     db.query(query, [sup_id, company_name, address, phone, status], (err, result) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນ Supplier ❌", details: err });
-//         }
-//         res.status(200).json({ message: "ເພີ່ມ Supplier ສຳເລັດ ✅", supplier_id: result.insertId });
-//     });
+// router.get("/supplier", async (req, res) => {
+//     try {
+//         const suppliers = await queryAsync(`
+//       SELECT sup_id, company_name, address, phone, status
+//       FROM tbsupplier
+//     `);
+//         res.status(200).json({ message: "Fetched all suppliers", data: suppliers });
+//     } catch (error) {
+//         res.status(500).json({ message: "Error fetching suppliers", error: error.message });
+//     }
 // });
 
-// // ✅ ดึงข้อมูล Supplier ทั้งหมด
-// router.get("/supplier", (req, res) => {
-//     const query = "SELECT * FROM tbsupplier";
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ Supplier ❌", details: err });
+// router.get("/supplier/:id", async (req, res) => {
+//     const supId = req.params.id;
+//     try {
+//         const [supplier] = await queryAsync(`
+//       SELECT sup_id, company_name, address, phone, status
+//       FROM tbsupplier
+//       WHERE sup_id = ?
+//     `, [supId]);
+
+//         if (!supplier) {
+//             return res.status(404).json({ message: "Supplier not found" });
 //         }
-//         res.status(200).json({ message: "ສະແດງຂໍ້ມູນ Supplier ສຳເລັດ ✅", data: results });
-//     });
+
+//         res.status(200).json({ message: "Fetched supplier", data: supplier });
+//     } catch (error) {
+//         res.status(500).json({ message: "Error fetching supplier", error: error.message });
+//     }
 // });
 
-// // เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
-// router.get("/next-supplier-id", (req, res) => {
-//     const query = `
-//         SELECT sup_id FROM tbsupplier WHERE sup_id LIKE 'SP%' ORDER BY sup_id DESC LIMIT 1
-//     `;
-    
-//     db.query(query, (err, results) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
-//         }
-        
-//         let nextId = "SP01"; // รหัสเริ่มต้น
-        
-//         if (results.length > 0) {
-//             const lastId = results[0].sup_id;
-//             const lastNumber = parseInt(lastId.substring(2));
-//             const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
-//             nextId = `SP${nextNumber}`;
-//         }
-        
-//         res.status(200).json({ 
-//             message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
-//             nextId: nextId 
-//         });
-//     });
+
+// router.post("/supplier", async (req, res) => {
+//     const { company_name, address, phone } = req.body;
+
+//     if (!company_name) {
+//         return res.status(400).json({ message: "Missing required fields" });
+//     }
+
+//     const status_first = 'ACTIVE';
+
+//     try {
+//         const result = await queryAsync(`
+//       INSERT INTO tbsupplier (company_name, address, phone, status)
+//       VALUES (?, ?, ?, ?)
+//     `, [company_name, address, phone, status_first]);
+
+//         res.status(200).json({ message: "Supplier created", sup_id: result.insertId });
+//     } catch (error) {
+//         res.status(500).json({ message: "Error creating supplier", error: error.message });
+//     }
 // });
 
-// // ✅ ดึงข้อมูล Supplier ตาม ID
-// router.get("/supplier/:id", (req, res) => {
-//     const { id } = req.params;
-
-//     const query = "SELECT * FROM tbsupplier WHERE sup_id = ?";
-//     db.query(query, [id], (err, results) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ Supplier ❌", details: err });
-//         }
-//         if (results.length === 0) {
-//             return res.status(404).json({ message: "ບໍ່ພົບ id Supplier ນີ້" });
-//         }
-//         res.status(200).json({ message: "ສະແດງຂໍ້ມູນ Supplier ສຳເລັດ ✅", data: results[0] });
-//     });
-// });
-
-// // ✅ แก้ไขข้อมูล Supplier
-// router.put("/supplier/:id", (req, res) => {
-//     const { id } = req.params;
+// router.put("/supplier/:id", async (req, res) => {
+//     const supId = req.params.id;
 //     const { company_name, address, phone, status } = req.body;
 
-//     const query = `
-//         UPDATE tbsupplier
-//         SET company_name = ?, address = ?, phone = ?, status = ?
-//         WHERE sup_id = ?
-//     `;
+//     try {
+//         const result = await queryAsync(`
+//       UPDATE tbsupplier
+//       SET company_name = ?, address = ?, phone = ?, status = ?
+//       WHERE sup_id = ?
+//     `, [company_name, address, phone, status, supId]);
 
-//     db.query(query, [company_name, address, phone, status, id], (err, result) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນ Supplier ❌", details: err });
-//         }
 //         if (result.affectedRows === 0) {
-//             return res.status(404).json({ message: "ບໍ່ພົບ Supplier ນີ້" });
+//             return res.status(404).json({ message: "Supplier not found" });
 //         }
-//         res.status(200).json({ message: "ແກ້ໄຂຂໍ້ມູນ Supplier ສຳເລັດ ✅" });
-//     });
+
+//         res.status(200).json({ message: "Supplier updated", sup_id: supId });
+//     } catch (error) {
+//         res.status(500).json({ message: "Error updating supplier", error: error.message });
+//     }
 // });
 
-// // ✅ ลบข้อมูล Supplier
-// router.delete("/supplier/:id", (req, res) => {
-//     const { id } = req.params;
+// router.delete("/supplier/:id", async (req, res) => {
+//     const supId = req.params.id;
 
-//     const query = "DELETE FROM tbsupplier WHERE sup_id = ?";
-//     db.query(query, [id], (err, result) => {
-//         if (err) {
-//             return res.status(500).json({ error: "ບໍ່ສາມາດລຶບຂໍ້ມູນ Supplier ❌", details: err });
-//         }
+//     try {
+//         const result = await queryAsync(`
+//       DELETE FROM tbsupplier
+//       WHERE sup_id = ?
+//     `, [supId]);
+
 //         if (result.affectedRows === 0) {
-//             return res.status(404).json({ message: "ບໍ່ພົບ id Supplier ນີ້" });
+//             return res.status(404).json({ message: "Supplier not found" });
 //         }
-//         res.status(200).json({ message: "ລຶບຂໍ້ມູນ Supplier ສຳເລັດ ✅" });
-//     });
+
+//         res.status(200).json({ message: "Supplier deleted", sup_id: supId });
+//     } catch (error) {
+//         res.status(500).json({ message: "Error deleting supplier", error: error.message });
+//     }
 // });
 
+// module.exports = router;
 const express = require("express");
 const router = express.Router();
-const moment = require("moment");
-const { queryAsync } = require("../../helper/queryfunction");
+const db = require("../../db"); 
 
+// ✅ เพิ่ม Supplier ใหม่
+router.post("/supplier", (req, res) => {
+    const { sup_id, company_name, address, phone } = req.body;
 
-router.get("/supplier", async (req, res) => {
-    try {
-        const suppliers = await queryAsync(`
-      SELECT sup_id, company_name, address, phone, status
-      FROM tbsupplier
-    `);
-        res.status(200).json({ message: "Fetched all suppliers", data: suppliers });
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching suppliers", error: error.message });
-    }
-});
+    const query = `
+        INSERT INTO tbsupplier (sup_id, company_name, address, phone)
+        VALUES (?, ?, ?, ?)
+    `;
 
-router.get("/supplier/:id", async (req, res) => {
-    const supId = req.params.id;
-    try {
-        const [supplier] = await queryAsync(`
-      SELECT sup_id, company_name, address, phone, status
-      FROM tbsupplier
-      WHERE sup_id = ?
-    `, [supId]);
-
-        if (!supplier) {
-            return res.status(404).json({ message: "Supplier not found" });
+    db.query(query, [sup_id, company_name, address, phone], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນ Supplier ❌", details: err });
         }
-
-        res.status(200).json({ message: "Fetched supplier", data: supplier });
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching supplier", error: error.message });
-    }
+        res.status(200).json({ message: "ເພີ່ມ Supplier ສຳເລັດ ✅", supplier_id: result.insertId });
+    });
 });
 
+// ✅ ดึงข้อมูล Supplier ทั้งหมด
+router.get("/supplier", (req, res) => {
+    const query = "SELECT * FROM tbsupplier";
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ Supplier ❌", details: err });
+        }
+        res.status(200).json({ message: "ສະແດງຂໍ້ມູນ Supplier ສຳເລັດ ✅", data: results });
+    });
+});
 
-router.post("/supplier", async (req, res) => {
+// เพิ่ม endpoint สำหรับดึงรหัสล่าสุดของบริการทั่วไป (NOT PACKAGE)
+router.get("/next-supplier-id", (req, res) => {
+    const query = `
+        SELECT sup_id FROM tbsupplier WHERE sup_id LIKE 'SP%' ORDER BY sup_id DESC LIMIT 1
+    `;
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລະຫັດ ❌", details: err });
+        }
+        
+        let nextId = "SP01"; // รหัสเริ่มต้น
+        
+        if (results.length > 0) {
+            const lastId = results[0].sup_id;
+            const lastNumber = parseInt(lastId.substring(2));
+            const nextNumber = (lastNumber + 1).toString().padStart(2, '0');
+            nextId = `SP${nextNumber}`;
+        }
+        
+        res.status(200).json({ 
+            message: "ດຶງລະຫັດຖັດໄປສຳເລັດ ✅", 
+            nextId: nextId 
+        });
+    });
+});
+
+// ✅ ดึงข้อมูล Supplier ตาม ID
+router.get("/supplier/:id", (req, res) => {
+    const { id } = req.params;
+
+    const query = "SELECT * FROM tbsupplier WHERE sup_id = ?";
+    db.query(query, [id], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນ Supplier ❌", details: err });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ message: "ບໍ່ພົບ id Supplier ນີ້" });
+        }
+        res.status(200).json({ message: "ສະແດງຂໍ້ມູນ Supplier ສຳເລັດ ✅", data: results[0] });
+    });
+});
+
+// ✅ แก้ไขข้อมูล Supplier
+router.put("/supplier/:id", (req, res) => {
+    const { id } = req.params;
     const { company_name, address, phone } = req.body;
 
-    if (!company_name) {
-        return res.status(400).json({ message: "Missing required fields" });
-    }
+    const query = `
+        UPDATE tbsupplier
+        SET company_name = ?, address = ?, phone = ?
+        WHERE sup_id = ?
+    `;
 
-    const status_first = 'ACTIVE';
-
-    try {
-        const result = await queryAsync(`
-      INSERT INTO tbsupplier (company_name, address, phone, status)
-      VALUES (?, ?, ?, ?)
-    `, [company_name, address, phone, status_first]);
-
-        res.status(200).json({ message: "Supplier created", sup_id: result.insertId });
-    } catch (error) {
-        res.status(500).json({ message: "Error creating supplier", error: error.message });
-    }
+    db.query(query, [company_name, address, phone,  id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນ Supplier ❌", details: err });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "ບໍ່ພົບ Supplier ນີ້" });
+        }
+        res.status(200).json({ message: "ແກ້ໄຂຂໍ້ມູນ Supplier ສຳເລັດ ✅" });
+    });
 });
 
-router.put("/supplier/:id", async (req, res) => {
-    const supId = req.params.id;
-    const { company_name, address, phone, status } = req.body;
+// ✅ ลบข้อมูล Supplier
+router.delete("/supplier/:id", (req, res) => {
+    const { id } = req.params;
 
-    try {
-        const result = await queryAsync(`
-      UPDATE tbsupplier
-      SET company_name = ?, address = ?, phone = ?, status = ?
-      WHERE sup_id = ?
-    `, [company_name, address, phone, status, supId]);
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Supplier not found" });
+    const query = "DELETE FROM tbsupplier WHERE sup_id = ?";
+    db.query(query, [id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດລຶບຂໍ້ມູນ Supplier ❌", details: err });
         }
-
-        res.status(200).json({ message: "Supplier updated", sup_id: supId });
-    } catch (error) {
-        res.status(500).json({ message: "Error updating supplier", error: error.message });
-    }
-});
-
-router.delete("/supplier/:id", async (req, res) => {
-    const supId = req.params.id;
-
-    try {
-        const result = await queryAsync(`
-      DELETE FROM tbsupplier
-      WHERE sup_id = ?
-    `, [supId]);
-
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: "Supplier not found" });
+            return res.status(404).json({ message: "ບໍ່ພົບ id Supplier ນີ້" });
         }
-
-        res.status(200).json({ message: "Supplier deleted", sup_id: supId });
-    } catch (error) {
-        res.status(500).json({ message: "Error deleting supplier", error: error.message });
-    }
+        res.status(200).json({ message: "ລຶບຂໍ້ມູນ Supplier ສຳເລັດ ✅" });
+    });
 });
 
 module.exports = router;

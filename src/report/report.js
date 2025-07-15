@@ -661,64 +661,6 @@ router.get("/appointment", (req, res) => {
     });
   });
 });
-
-router.get("/preorder", (req, res) => {
-  const sql = `
-    SELECT 
-      p.preorder_id,
-      p.preorder_date,
-      p.status,
-      p.sup_id,
-      p.emp_id_create,
-      GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
-    FROM tbpreorder p
-    LEFT JOIN tbpreorder_detail d ON d.preorder_id = p.preorder_id
-    LEFT JOIN tbmedicines m ON m.med_id = d.med_id
-    LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
-    GROUP BY p.preorder_id
-    ORDER BY p.preorder_date DESC
-  `;
-
-  db.query(sql, (err, results) => {
-    if (err)
-      return res
-        .status(500)
-        .json({ error: "Get preorder failed", details: err });
-    res.status(200).json({ data: results });
-  });
-});
-
-router.get("/import", (req, res) => {
-  const query = `
-    SELECT 
-  i.im_id,
-  i.im_date,
-  i.preorder_id,
-  i.file,
-  i.emp_id_create,
-  i.note,
-  GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
-FROM tbimport i
-LEFT JOIN tbimport_detail d ON d.im_id = i.im_id
-LEFT JOIN tbmedicines m ON m.med_id = d.med_id
-LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
-GROUP BY i.im_id
-ORDER BY i.im_date DESC
-
-  `;
-
-  db.query(query, (err, results) => {
-    if (err) {
-      console.error("Database error:", err);
-      return res.status(500).json({
-        error: "Get import failed",
-        details: err.message,
-      });
-    }
-    res.status(200).json({ data: results });
-  });
-});
-
 router.get("/import", (req, res) => {
   const query = `
     SELECT 
@@ -734,18 +676,58 @@ LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
 GROUP BY i.im_id
 
   `;
-
+  
   db.query(query, (err, results) => {
     if (err) {
       console.error("Database error:", err);
-      return res.status(500).json({
-        error: "Get import failed",
-        details: err.message,
+      return res.status(500).json({ 
+        error: "Get import failed", 
+        details: err.message 
       });
     }
     res.status(200).json({ data: results });
   });
 });
+
+// ✅ ดึงรายละเอียดนำเข้าตาม im_id (ครบ field ที่ UI ใช้)
+router.get("/import-detail/:im_id", (req, res) => {
+  const { im_id } = req.params;
+
+  const query = `
+    SELECT 
+      d.detail_id,
+      d.im_id,
+      d.med_id,
+      m.med_name,
+      t.type_name,
+      d.qty,
+      m.unit,
+      d.expired_date AS expired
+    FROM tbimport_detail d
+    JOIN tbmedicines m ON d.med_id = m.med_id
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+    WHERE d.im_id = ?
+  `;
+
+  db.query(query, [im_id], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າໄດ້",
+        details: err.message
+      });
+    }
+
+    res.status(200).json({
+      message: "ດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າສຳເລັດ",
+      data: results
+    });
+  });
+});
+
+
+
+// ----------------------------- preorder Report---
 
 router.get("/preorder", (req, res) => {
   const query = `
@@ -763,16 +745,54 @@ GROUP BY p.preorder_id
 
 
   `;
-
+  
   db.query(query, (err, results) => {
     if (err) {
       console.error("Database error:", err);
-      return res.status(500).json({
-        error: "Get preorder failed",
-        details: err.message,
+      return res.status(500).json({ 
+        error: "Get preorder failed", 
+        details: err.message 
       });
     }
     res.status(200).json({ data: results });
   });
 });
+
+// ✅ ดึงรายละเอียด Preorder ตาม preorder_id
+router.get("/preorder-detail/:preorder_id", (req, res) => {
+  const { preorder_id } = req.params;
+
+  const query = `
+    SELECT 
+      d.detail_id,
+      d.preorder_id,
+      d.med_id,
+      m.med_name,
+      t.type_name,
+      d.qty,
+      m.unit
+    FROM tbpreorder_detail d
+    JOIN tbmedicines m ON d.med_id = m.med_id
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+    WHERE d.preorder_id = ?
+    ORDER BY d.detail_id
+  `;
+
+  db.query(query, [preorder_id], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍລະອຽດ Preorder ໄດ້",
+        details: err.message
+      });
+    }
+
+    res.status(200).json({
+      message: "ດຶງຂໍ້ມູນລາຍລະອຽດ Preorder ສຳເລັດ",
+      data: results
+    });
+  });
+});
+
+
 module.exports = router;
