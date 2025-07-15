@@ -13,7 +13,7 @@ router.get("/get-last-detail-id", (req, res) => {
 
   db.query(query, (err, results) => {
     if (err) {
-      console.error('Database error:', err);
+  
       return res.status(500).json({ 
         error: "ไม่สามารถดึงข้อมูล detail_id ล่าสุดได้", 
         details: err 
@@ -50,26 +50,37 @@ router.get("/preorder-detail/:preorder_id", (req, res) => {
   const { preorder_id } = req.params;
 
   const query = `
-    SELECT *FROM tbpreorder_detail WHERE preorder_id = ?
-    ORDER BY detail_id
-`;
-
+    SELECT 
+      p.detail_id,
+      p.preorder_id,
+      p.med_id,
+      p.qty,
+      m.med_name,
+      t.type_name,
+      m.unit
+    FROM tbpreorder_detail p
+    JOIN tbmedicines m ON p.med_id = m.med_id
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+    WHERE p.preorder_id = ?
+    ORDER BY p.detail_id
+  `;
 
   db.query(query, [preorder_id], (err, results) => {
     if (err) {
-      console.error("Database error:", err);
+
       return res.status(500).json({
         error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍລະອຽດສັ່ງຊື້ໄດ້",
-        details: err.message
+        details: err.message,
       });
     }
 
     res.status(200).json({
       message: "ດຶງຂໍ້ມູນລາຍລະອຽດສັ່ງຊື້ສຳເລັດ",
-      data: results
+      data: results,
     });
   });
 });
+
 
 // ดึงรายละเอียดสั่งซื้อตาม preorder_id
 router.get("/preorder-detail", (req, res) => {
@@ -89,6 +100,74 @@ router.get("/preorder-detail", (req, res) => {
     res.status(200).json({
       message: "ດຶງຂໍ້ມູນລາຍລະອຽດສັ່ງຊື້ສຳເລັດ",
       data: results
+    });
+  });
+});
+
+// API สำหรับแก้ไขรายละเอียดสั่งซื้อ
+router.put("/preorder-detail/:detail_id", (req, res) => {
+  const { detail_id } = req.params;
+  const { qty } = req.body;
+
+  // ตรวจสอบว่ามีการส่ง qty มาหรือไม่
+  if (!qty || qty <= 0) {
+    return res.status(400).json({ 
+      error: "ຈຳນວນຕ້ອງມາກກວ່າ 0", 
+      details: "Quantity must be greater than 0" 
+    });
+  }
+
+  // ตรวจสอบว่า detail_id มีอยู่ในฐานข้อมูลหรือไม่
+  const checkQuery = `
+    SELECT detail_id FROM tbpreorder_detail 
+    WHERE detail_id = ?
+  `;
+
+  db.query(checkQuery, [detail_id], (err, results) => {
+    if (err) {
+      console.error("Error checking detail_id:", err);
+      return res.status(500).json({ 
+        error: "ການກວດສອບຂໍ້ມູນລົ້ມເຫລວ", 
+        details: err 
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ 
+        error: "ບໍ່ພົບລາຍລະອຽດທີ່ຕ້ອງການແກ້ໄຂ", 
+        details: "Detail not found" 
+      });
+    }
+
+    // อัปเดตจำนวนในฐานข้อมูล
+    const updateQuery = `
+      UPDATE tbpreorder_detail 
+      SET qty = ?
+      WHERE detail_id = ?
+    `;
+
+    db.query(updateQuery, [qty, detail_id], (err, result) => {
+      if (err) {
+        console.error("Error updating detail:", err);
+        return res.status(500).json({ 
+          error: "ການແກ້ໄຂຂໍ້ມູນລົ້ມເຫລວ", 
+          details: err 
+        });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ 
+          error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນໄດ້", 
+          details: "No rows affected" 
+        });
+      }
+
+      res.status(200).json({ 
+        message: "ແກ້ໄຂຂໍ້ມູນສຳເລັດ ✅",
+        detail_id: detail_id,
+        new_qty: qty,
+        affected_rows: result.affectedRows
+      });
     });
   });
 });

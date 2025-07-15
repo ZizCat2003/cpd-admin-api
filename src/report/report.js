@@ -56,56 +56,18 @@ router.get("/patient/:id", async (req, res) => {
   }
 });
 
-router.get("/inspection/:id", async (req, res) => {
-  const { id } = req.params;
 
-  const select_detail_inspection = `
-    SELECT td.tre_id, td.ser_id, s.ser_name, td.qty, td.price, (td.qty * td.price) as total, td.in_id
-    FROM tbtreat_detail td 
-    JOIN tbservice s on s.ser_Id  = td.ser_Id
-    where td.in_id = ?`;
-
-  try {
-    db.query(select_detail_inspection, [id], async (err, results) => {
-      if (err) {
-        return res.status(500).json({
-          message: "Server error",
-          error: err.message,
-        });
-      }
-
-      if (results.length === 0) {
-        return res.status(404).json({ message: "No patient found" });
-      }
-
-      const detail = results;
-
-      res.status(200).json({
-        resultCode: "200",
-        message: "Fetch successful",
-        detail: detail,
-      });
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
-  }
-});
-
-
-// router.get("/prescription/:id", async (req, res) => {
+// router.get("/inspection/:id", async (req, res) => {
 //   const { id } = req.params;
 
-//   const select_detail_prescription = `
-//     SELECT pre.pre_id, pre.med_id, med.med_name, (pre.qty * pre.price) as total, pre.in_id
-//     FROM tbpresecriptiondetail pre 
-//     JOIN tbmedicines med on med.med_id  = pre.med_id
-//     where pre.in_id = ?`;
+//   const select_detail_inspection = `
+//     SELECT td.tre_id, td.ser_id, s.ser_name, td.qty, td.price, (td.qty * td.price) as total, td.in_id
+//     FROM tbtreat_detail td 
+//     JOIN tbservice s on s.ser_Id  = td.ser_Id
+//     where td.in_id = ?`;
 
 //   try {
-//     db.query(select_detail_prescription, [id], async (err, results) => {
+//     db.query(select_detail_inspection, [id], async (err, results) => {
 //       if (err) {
 //         return res.status(500).json({
 //           message: "Server error",
@@ -132,26 +94,202 @@ router.get("/inspection/:id", async (req, res) => {
 //     });
 //   }
 // });
+const queryAsync = (sql, params) => {
+    return new Promise((resolve, reject) => {
+        db.query(sql, params, (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+        });
+    });
+};
 
-router.get("/prescription/:id", async (req, res) => {
+const getInspectionWithPatient = (in_id) => {
+  const sql = `
+    SELECT 
+      i.in_id,
+      i.patient_id,
+      p.patient_name,
+      i.date,
+      i.diseases_now,
+      i.symptom,
+      i.checkup,
+      i.note
+    FROM 
+      tbinspection i
+    JOIN 
+      tbpatient p ON i.patient_id = p.patient_id
+    WHERE 
+      i.in_id = ?
+  `;
+  return queryAsync(sql, [in_id]);
+};
+
+const getInspectionDetails = (in_id) => {
+  const sql = `
+    SELECT 
+      td.tre_id,
+      td.ser_id,
+      s.ser_name,
+      td.qty,
+      td.price,
+      (td.qty * td.price) as total,
+      td.in_id
+    FROM 
+      tbtreat_detail td 
+    JOIN 
+      tbservice s ON s.ser_id = td.ser_id
+    WHERE 
+      td.in_id = ?
+  `;
+  return queryAsync(sql, [in_id]);
+};
+
+const getAllMedicineDetails = (in_id) => {
+  const sql = `
+    SELECT 
+      pre.pre_id, 
+      pre.med_id, 
+      med.med_name,
+      (pre.qty * pre.price) as total, 
+      med.medtype_id,
+      mtype.type_name, 
+      pre.in_id,
+      pre.qty,
+      med.unit,
+      med.price
+    FROM 
+      tbpresecriptiondetail pre 
+    JOIN 
+      tbmedicines med ON med.med_id = pre.med_id
+    JOIN 
+      tbmedicinestype mtype ON mtype.medtype_id = med.medtype_id
+    WHERE 
+      pre.in_id = ?
+  `;
+  return queryAsync(sql, [in_id]);
+};
+
+router.get("/inspection/:id", async (req, res) => {
   const { id } = req.params;
-  const { medtype_id } = req.query; 
 
+  try {
+    const [inspection] = await getInspectionWithPatient(id);
+    if (!inspection) {
+      return res.status(404).json({ message: "Inspection not found" });
+    }
+
+    const services = await getInspectionDetails(id);
+    const medicines = await getAllMedicineDetails(id);
+
+    res.status(200).json({
+      resultCode: "200",
+      message: "Inspection with details fetched",
+      data: {
+        ...inspection,
+        services,
+        medicines
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+router.get("/inspection", async (req, res) => {
+  try {
+    const inspections = await getAllInspections();
+
+    const results = await Promise.all(
+      inspections.map(async (inspection) => {
+        const services = await getInspectionDetails(inspection.in_id);
+        const medicines = await getAllMedicineDetails(inspection.in_id);
+
+        return {
+          ...inspection,
+          services,
+          medicines,
+        };
+      })
+    );
+
+    res.status(200).json({
+      resultCode: "200",
+      message: "All inspections fetched successfully",
+      data: results,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+
+const getAllInspections = () => {
+  const sql = `
+    SELECT 
+      i.in_id,
+      i.patient_id,
+      p.patient_name,
+      i.date,
+      i.diseases_now,
+      i.symptom,
+      i.checkup,
+      i.note
+    FROM 
+      tbinspection i
+    JOIN 
+      tbpatient p ON i.patient_id = p.patient_id
+    ORDER BY i.date DESC
+  `;
+  return queryAsync(sql);
+};
+
+
+router.get("/prescription", async (req, res) => {
+  const { id, med_type } = req.query;
+
+  if (!id) {
+    return res.status(400).json({ message: "Missing required parameter: id" });
+  }
+
+  // Base SQL
   let select_detail_prescription = `
-    SELECT pre.pre_id, pre.med_id, med.med_name, (pre.qty * pre.price) as total, pre.in_id
-    FROM tbpresecriptiondetail pre 
-    JOIN tbmedicines med on med.med_id = pre.med_id
-    WHERE pre.in_id = ?`;
+    SELECT 
+      pre.pre_id, 
+      pre.med_id, 
+      med.med_name,
+      pre.qty, 
+      pre.price,
+      (pre.qty * pre.price) as total, 
+      med.medtype_id,
+      mtype.type_name, 
+      pre.in_id
+    FROM 
+      tbpresecriptiondetail pre 
+    JOIN 
+      tbmedicines med ON med.med_id = pre.med_id
+    JOIN 
+      tbmedicinestype mtype ON mtype.medtype_id = med.medtype_id
+    WHERE 
+      pre.in_id = ?
+  `;
+
+
 
   const params = [id];
 
-  if (medtype_id && medtype_id !== "") {
-    select_detail_prescription += ` AND med.medtype_id = ?`;
-    params.push(medtype_id);
+  if (med_type) {
+    select_detail_prescription += " AND med.medtype_id = ?";
+    params.push(med_type);
   }
 
   try {
-    db.query(select_detail_prescription, params, async (err, results) => {
+    db.query(select_detail_prescription, params, (err, results) => {
       if (err) {
         return res.status(500).json({
           message: "Server error",
@@ -160,10 +298,10 @@ router.get("/prescription/:id", async (req, res) => {
       }
 
       if (results.length === 0) {
-        return res.status(404).json({ message: "No data found" });
+        return res.status(404).json({ message: "No prescription details found" });
       }
 
-      res.status(200).json({
+      return res.status(200).json({
         resultCode: "200",
         message: "Fetch successful",
         detail: results,
@@ -178,72 +316,72 @@ router.get("/prescription/:id", async (req, res) => {
 });
 
 
-router.get("/inspection", async (req, res) => {
-  const select_inspection = `
-    SELECT 
-      ins.in_id, 
-      ins.date, 
-      ins.patient_id, 
-      p.patient_name, 
-      p.patient_surname,
-      p.gender,
-      ins.diseases_now, 
-      ins.symptom, 
-      ins.note, 
-      ins.status, 
-      ins.diseases, 
-      ins.checkup
-    FROM tbinspection ins
-    JOIN tbpatient p ON ins.patient_id = p.patient_id
-    ORDER BY ins.date DESC`;
+// router.get("/inspection", async (req, res) => {
+//   const select_inspection = `
+//     SELECT 
+//       ins.in_id, 
+//       ins.date, 
+//       ins.patient_id, 
+//       p.patient_name, 
+//       p.patient_surname,
+//       p.gender,
+//       ins.diseases_now, 
+//       ins.symptom, 
+//       ins.note, 
+//       ins.status, 
+//       ins.diseases, 
+//       ins.checkup
+//     FROM tbinspection ins
+//     JOIN tbpatient p ON ins.patient_id = p.patient_id
+//     ORDER BY ins.date DESC`;
 
-  try {
-    db.query(select_inspection, async (err, results) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({
-          message: "Server error",
-          error: err.message,
-        });
-      }
+//   try {
+//     db.query(select_inspection, async (err, results) => {
+//       if (err) {
+//         console.error('Database error:', err);
+//         return res.status(500).json({
+//           message: "Server error",
+//           error: err.message,
+//         });
+//       }
 
-      if (results.length === 0) {
-        return res.status(404).json({ 
-          message: "No inspection records found",
-          detail: []
-        });
-      }
+//       if (results.length === 0) {
+//         return res.status(404).json({ 
+//           message: "No inspection records found",
+//           detail: []
+//         });
+//       }
 
-      const detail = results.map(row => ({
-        in_id: row.in_id,
-        date: row.date,
-        patient_id: row.patient_id,
-        patient_name: row.patient_name,
-        patient_surname: row.patient_surname || '',
-        gender: row.gender || '',
-        diseases_now: row.diseases_now || '',
-        symptom: row.symptom || '',
-        note: row.note || '',
-        status: row.status || '',
-        diseases: row.diseases,
-        checkup: row.checkup || ''
-      }));
+//       const detail = results.map(row => ({
+//         in_id: row.in_id,
+//         date: row.date,
+//         patient_id: row.patient_id,
+//         patient_name: row.patient_name,
+//         patient_surname: row.patient_surname || '',
+//         gender: row.gender || '',
+//         diseases_now: row.diseases_now || '',
+//         symptom: row.symptom || '',
+//         note: row.note || '',
+//         status: row.status || '',
+//         diseases: row.diseases,
+//         checkup: row.checkup || ''
+//       }));
 
-      res.status(200).json({
-        resultCode: "200",
-        message: "Fetch successful",
-        count: detail.length,
-        detail: detail,
-      });
-    });
-  } catch (error) {
-    console.error('Server error:', error);
-    return res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
-  }
-});
+//       res.status(200).json({
+//         resultCode: "200",
+//         message: "Fetch successful",
+//         count: detail.length,
+//         detail: detail,
+//       });
+//     });
+//   } catch (error) {
+//     console.error('Server error:', error);
+//     return res.status(500).json({
+//       message: "Server error",
+//       error: error.message,
+//     });
+//   }
+// });
 // router.get("/inspection", async (req, res) => {
 //   const select_inspection = `
 //     SELECT ins.in_id, ins.date, ins.patient_id, p.patient_name, ins.diseases_now, ins.symptom, ins.note, ins.status, ins.diseases, ins.checkup
@@ -279,57 +417,57 @@ router.get("/inspection", async (req, res) => {
 //   }
 // });
 
-router.get("/prescription", async (req, res) => {
-  try {
-    const { id } = req.query;
-    const cate_type = id ? id.toString().toUpperCase() : null;
+// router.get("/prescription", async (req, res) => {
+//   try {
+//     const { id } = req.query;
+//     const cate_type = id ? id.toString().toUpperCase() : null;
 
-    let query = `
-      SELECT 
-        p.med_id,
-        m.med_name,
-        SUM(p.qty) AS qty,
-        MAX(m.price) AS price
-      FROM 
-        tbpresecriptiondetail p
-      JOIN 
-        tbmedicines m ON p.med_id = m.med_id
-    `;
+//     let query = `
+//       SELECT 
+//         p.med_id,
+//         m.med_name,
+//         SUM(p.qty) AS qty,
+//         MAX(m.price) AS price
+//       FROM 
+//         tbpresecriptiondetail p
+//       JOIN 
+//         tbmedicines m ON p.med_id = m.med_id
+//     `;
 
-    const params = [];
+//     const params = [];
 
-    if (cate_type && cate_type !== "") {
-      query += ` WHERE m.medtype_id = ?`;
-      params.push(cate_type);
-    }
+//     if (cate_type && cate_type !== "") {
+//       query += ` WHERE m.medtype_id = ?`;
+//       params.push(cate_type);
+//     }
 
-    query += ` GROUP BY p.med_id, m.med_name ORDER BY p.med_id ASC`;
+//     query += ` GROUP BY p.med_id, m.med_name ORDER BY p.med_id ASC`;
 
-    db.query(query, params, (err, results) => {
-      if (err) {
-        return res.status(500).json({
-          message: "Server error",
-          error: err.message,
-        });
-      }
+//     db.query(query, params, (err, results) => {
+//       if (err) {
+//         return res.status(500).json({
+//           message: "Server error",
+//           error: err.message,
+//         });
+//       }
 
-      if (!results || results.length === 0) {
-        return res.status(404).json({ message: "No data found" });
-      }
+//       if (!results || results.length === 0) {
+//         return res.status(404).json({ message: "No data found" });
+//       }
 
-      res.status(200).json({
-        resultCode: "200",
-        message: "Fetch successful",
-        detail: results,
-      });
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Server error",
-      error: error.message,
-    });
-  }
-});
+//       res.status(200).json({
+//         resultCode: "200",
+//         message: "Fetch successful",
+//         detail: results,
+//       });
+//     });
+//   } catch (error) {
+//     return res.status(500).json({
+//       message: "Server error",
+//       error: error.message,
+//     });
+//   }
+// });
 
 // router.get("/prescription", async (req, res) => {
 //   const select_prescription = `
@@ -376,16 +514,10 @@ router.get("/prescription", async (req, res) => {
 
 router.get("/stock", async (req, res) => {
   const select_stock = `
-    SELECT 
-    med_id, 
-    med_name, 
-    qty, 
-    CASE 
-        WHEN qty > 0 THEN 'AVAILABLE'
-        ELSE 'UNAVAILABLE'
-    END AS status
-    FROM 
-    tbmedicines;`;
+  SELECT m.med_id, m.med_name,m.qty, t.medtype_id,t.type_name,m.status 
+    FROM tbmedicines m 
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+    `;
 
   try {
     db.query(select_stock, async (err, results) => {
@@ -397,15 +529,14 @@ router.get("/stock", async (req, res) => {
       }
 
       if (results.length === 0) {
-        return res.status(404).json({ message: "No patient found" });
+        return res.status(404).json({ message: "No stock found" });
       }
 
-      const detail = results;
-
+      // เปลี่ยนจาก detail เป็น data เพื่อให้เหมือนกับ API อื่นๆ
       res.status(200).json({
         resultCode: "200",
         message: "Fetch successful",
-        detail: detail,
+        data: results, // เปลี่ยนจาก detail เป็น data
       });
     });
   } catch (error) {
@@ -448,6 +579,35 @@ JOIN tbinspection ins ON i.in_id = ins.in_id
     });
   });
 });
+
+
+router.get("/payment/today-total", (req, res) => {
+  const today = moment().format("YYYY-MM-DD");
+
+  const query = `
+    SELECT 
+      SUM(CAST(paid_amount AS DECIMAL(10,2))) AS total_paid_today
+    FROM tbpayments
+    WHERE DATE(pay_date) = ?
+  `;
+
+  db.query(query, [today], (err, results) => {
+    if (err) {
+      return res.status(500).json({
+        resultCode: "500",
+        message: "Database error",
+        error: err.message,
+      });
+    }
+
+    res.status(200).json({
+      resultCode: "200",
+      message: "Total paid amount for today retrieved successfully",
+      total_paid_today: results[0].total_paid_today || 0,
+    });
+  });
+});
+
 // ----------------------------- Payment Report---
 
 router.get("/appointment", (req, res) => {
@@ -477,8 +637,8 @@ router.get("/appointment", (req, res) => {
   });
 });
 
-
-
+// ----------------------------- import Report---
+{/*
 router.get("/import", (req, res) => {
   const sql = `
     SELECT 
@@ -523,6 +683,141 @@ router.get("/import", (req, res) => {
       error: error.message,
     });
   }
+});  */}
+
+router.get("/import", (req, res) => {
+  const query = `
+    SELECT 
+  i.im_id,
+  i.im_date,
+  i.preorder_id,
+  i.emp_id_create,
+  GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
+FROM tbimport i
+LEFT JOIN tbimport_detail d ON d.im_id = i.im_id
+LEFT JOIN tbmedicines m ON m.med_id = d.med_id
+LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
+GROUP BY i.im_id
+
+  `;
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ 
+        error: "Get import failed", 
+        details: err.message 
+      });
+    }
+    res.status(200).json({ data: results });
+  });
 });
+
+// ✅ ดึงรายละเอียดนำเข้าตาม im_id (ครบ field ที่ UI ใช้)
+router.get("/import-detail/:im_id", (req, res) => {
+  const { im_id } = req.params;
+
+  const query = `
+    SELECT 
+      d.detail_id,
+      d.im_id,
+      d.med_id,
+      m.med_name,
+      t.type_name,
+      d.qty,
+      m.unit,
+      d.expired_date AS expired
+    FROM tbimport_detail d
+    JOIN tbmedicines m ON d.med_id = m.med_id
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+    WHERE d.im_id = ?
+  `;
+
+  db.query(query, [im_id], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າໄດ້",
+        details: err.message
+      });
+    }
+
+    res.status(200).json({
+      message: "ດຶງຂໍ້ມູນລາຍລະອຽດນຳເຂົ້າສຳເລັດ",
+      data: results
+    });
+  });
+});
+
+
+
+// ----------------------------- preorder Report---
+
+router.get("/preorder", (req, res) => {
+  const query = `
+  SELECT 
+  p.preorder_id,
+  p.preorder_date,
+  p.sup_id,
+  p.emp_id_create,
+  GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
+FROM tbpreorder p
+LEFT JOIN tbpreorder_detail d ON d.preorder_id = p.preorder_id
+LEFT JOIN tbmedicines m ON m.med_id = d.med_id
+LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
+GROUP BY p.preorder_id
+
+
+  `;
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ 
+        error: "Get preorder failed", 
+        details: err.message 
+      });
+    }
+    res.status(200).json({ data: results });
+  });
+});
+
+// ✅ ดึงรายละเอียด Preorder ตาม preorder_id
+router.get("/preorder-detail/:preorder_id", (req, res) => {
+  const { preorder_id } = req.params;
+
+  const query = `
+    SELECT 
+      d.detail_id,
+      d.preorder_id,
+      d.med_id,
+      m.med_name,
+      t.type_name,
+      d.qty,
+      m.unit
+    FROM tbpreorder_detail d
+    JOIN tbmedicines m ON d.med_id = m.med_id
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+    WHERE d.preorder_id = ?
+    ORDER BY d.detail_id
+  `;
+
+  db.query(query, [preorder_id], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({
+        error: "ບໍ່ສາມາດດຶງຂໍ້ມູນລາຍລະອຽດ Preorder ໄດ້",
+        details: err.message
+      });
+    }
+
+    res.status(200).json({
+      message: "ດຶງຂໍ້ມູນລາຍລະອຽດ Preorder ສຳເລັດ",
+      data: results
+    });
+  });
+});
+
+
 
 module.exports = router;

@@ -4,14 +4,14 @@ const db = require("../../db");
 
 // ✅ เพิ่ม Supplier ใหม่
 router.post("/supplier", (req, res) => {
-    const { sup_id, company_name, address, phone, status } = req.body;
+    const { sup_id, company_name, address, phone } = req.body;
 
     const query = `
-        INSERT INTO tbsupplier (sup_id, company_name, address, phone, status)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO tbsupplier (sup_id, company_name, address, phone)
+        VALUES (?, ?, ?, ?)
     `;
 
-    db.query(query, [sup_id, company_name, address, phone, status], (err, result) => {
+    db.query(query, [sup_id, company_name, address, phone], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດເພີ່ມຂໍ້ມູນ Supplier ❌", details: err });
         }
@@ -76,15 +76,15 @@ router.get("/supplier/:id", (req, res) => {
 // ✅ แก้ไขข้อมูล Supplier
 router.put("/supplier/:id", (req, res) => {
     const { id } = req.params;
-    const { company_name, address, phone, status } = req.body;
+    const { company_name, address, phone } = req.body;
 
     const query = `
         UPDATE tbsupplier
-        SET company_name = ?, address = ?, phone = ?, status = ?
+        SET company_name = ?, address = ?, phone = ?
         WHERE sup_id = ?
     `;
 
-    db.query(query, [company_name, address, phone, status, id], (err, result) => {
+    db.query(query, [company_name, address, phone,  id], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດແກ້ໄຂຂໍ້ມູນ Supplier ❌", details: err });
         }

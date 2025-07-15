@@ -46,7 +46,7 @@ const upload = multer({
 });
 
 // ✅ POST - สร้าง import ใหม่ (รองรับการอัพโลดไฟล์)
-router.post("/", upload.single('file'), (req, res) => {
+router.post("/import", upload.single('file'), (req, res) => {
   try {
     const { im_id, im_date, preorder_id, emp_id, note } = req.body;
     
@@ -85,11 +85,11 @@ router.post("/", upload.single('file'), (req, res) => {
       }
       if (preorder_id) {
         const updateStatusQuery = 'UPDATE tbpreorder SET status = ? WHERE preorder_id = ?';
-        db.query(updateStatusQuery, ['ສຳເລັດ', preorder_id]);
+        db.query(updateStatusQuery, ['SUCCESS', preorder_id]);
     }
       
       res.status(200).json({ 
-        message: "Insert import success ✅",
+        message: "Insert import SUCCESS ✅",
         data: {
           im_id,
           im_date,
@@ -111,16 +111,23 @@ router.post("/", upload.single('file'), (req, res) => {
 });
 
 // ✅ GET - รับข้อมูล import ทั้งหมด
-router.get("/", (req, res) => {
+router.get("/import", (req, res) => {
   const query = `
     SELECT 
-      im_id,
-      im_date,
-      preorder_id,
-      file,
-      emp_id_create,
-      note
-    FROM tbimport 
+  i.im_id,
+  i.im_date,
+  i.preorder_id,
+  i.file,
+  i.emp_id_create,
+  i.note,
+  GROUP_CONCAT(DISTINCT mt.type_name ORDER BY mt.type_name) AS types
+FROM tbimport i
+LEFT JOIN tbimport_detail d ON d.im_id = i.im_id
+LEFT JOIN tbmedicines m ON m.med_id = d.med_id
+LEFT JOIN tbmedicinestype mt ON mt.medtype_id = m.medtype_id
+GROUP BY i.im_id
+ORDER BY i.im_id ASC
+
   `;
   
   db.query(query, (err, results) => {
@@ -188,10 +195,10 @@ router.get("/import/:id", (req, res) => {
 });
 
 // ✅ PUT - อัพเดทข้อมูล import
-router.put("/:id", upload.single('file'), (req, res) => {
+router.put("/import/:id", upload.single('file'), (req, res) => {
   try {
     const { id } = req.params;
-    const { im_date, preorder_id, emp_id } = req.body;
+    const { im_date, preorder_id, emp_id_create, note= '' } = req.body;
     
     db.query("SELECT * FROM tbimport WHERE im_id = ?", [id], (err, results) => {
       if (err) {
@@ -227,7 +234,7 @@ router.put("/:id", upload.single('file'), (req, res) => {
         WHERE im_id = ?
       `;
       
-      db.query(updateQuery, [im_date, preorder_id || null, fileName, emp_id, note, id], (err) => {
+      db.query(updateQuery, [im_date, preorder_id || null, fileName, emp_id_create, note, id], (err) => {
         if (err) {
           console.error("Update error:", err);
           return res.status(500).json({ 
@@ -243,7 +250,7 @@ router.put("/:id", upload.single('file'), (req, res) => {
             im_date,
             preorder_id: preorder_id || null,
             file: fileName,
-            emp_id_create: emp_id,
+            emp_id_create: emp_id_create,
             note: note
           }
         });
@@ -397,6 +404,6 @@ router.get("/download/:filename", (req, res) => {
     }
   });
 });
-
+  
 module.exports = router;
 

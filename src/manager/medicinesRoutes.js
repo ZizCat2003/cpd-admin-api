@@ -7,10 +7,10 @@ const db = require("../../db");
 const updateMedicineStatus = (qty) => {
   if (qty <= 0) {
     return 'ໝົດ';
-  } else if (qty <= 20) {
-    return 'ໃກ້ໝົດ';
+  } else if (qty <= 25) {
+    return 'ກຳລັງຈະໝົດ';
   } else {
-    return 'ຍັງມີ';
+    return 'ພຽງພໍ';
   }
 };
 
@@ -71,7 +71,7 @@ const updateStatusInDatabase = (callback) => {
 router.get("/medicinesWang", (req, res) => {
     const { id } = req.params;
 
-    const query = "SELECT * FROM tbmedicines WHERE status IN ('ໃກ້ໝົດ', 'ໝົດ')";
+    const query = "SELECT m.*,t.type_name FROM tbmedicines m JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id WHERE m.qty <= 25";
     db.query(query, [id], (err, results) => {
         if (err) {
             return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
@@ -108,7 +108,7 @@ router.get("/medicines", (req, res) => {
   });
 });
 
-// medicinesRoutes.js - แก้ไข GET medicines by ID
+{/*// medicinesRoutes.js - แก้ไข GET medicines by ID
 router.get("/medicines/:id", (req, res) => {
   const { id } = req.params;
 
@@ -149,6 +149,38 @@ router.get("/medicines/:id", (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
+      message: "API Error",
+      error: error.message,
+    });
+  }
+}); */}
+
+router.get("/medicines/:id", (req, res) => {
+  const { id } = req.params;
+  try {
+    const cate_type = id.toString().toUpperCase();
+    let query = 'SELECT * FROM tbmedicines';
+
+    if (id && id !== "") {
+      query += ` WHERE medtype_id = ?`;
+    }
+
+    query += ` ORDER BY med_id ASC`;
+
+    db.query(query, [cate_type], (err, results) => {
+      // console.log(query);
+      if (err) {
+        return res.status(500).json({ error: "Data not found", details: err });
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: "id not found" });
+      }
+      res
+        .status(200)
+        .json({ resultCode: "200", message: "Query Success", data: results });
+    });
+  } catch (error) {
+    res.status(299).json({
       message: "API Error",
       error: error.message,
     });
@@ -343,6 +375,22 @@ router.put("/medicines-bulk-status-update", (req, res) => {
       ...result
     });
   });
+});
+
+
+router.get("/medicinesPAPAG", (req, res) => {
+    const query = `
+    SELECT m.med_id,m.unit, m.med_name, t.medtype_id,t.type_name 
+    FROM tbmedicines m 
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+  `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "ບໍ່ສາມາດສະແດງຂໍ້ມູນຢາ ❌", details: err });
+        }
+        res.status(200).json({ message: "ສະແດງຂໍ້ມູນສຳເລັດ ✅", data: results });
+    });
 });
 
 

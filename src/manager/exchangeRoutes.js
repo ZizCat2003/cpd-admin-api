@@ -84,7 +84,7 @@ router.get("/exchange/:id", (req, res) => {
 });
 router.put("/exchange/:id", (req, res) => {
     const { id } = req.params;
-    const { ex_type, ex_rate } = req.body;
+    const { ex_type, ex_rate, ex_date } = req.body;
 
     const query = `
         UPDATE tbexchange

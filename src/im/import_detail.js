@@ -143,15 +143,15 @@ router.put("/import-detail/:detail_id", (req, res) => {
 
         // 3. ปรับจำนวนยาตามผลต่าง
         const updateMedicineQuery = `
-          UPDATE tbmedicine 
-          SET quantity = quantity + ? 
+          UPDATE tbmedicines 
+          SET qty = qty + ? 
           WHERE med_id = ?
         `;
 
         db.query(updateMedicineQuery, [qty_difference, med_id], (err) => {
           if (err) {
             return db.rollback(() => {
-              res.status(500).json({ error: "Update medicine quantity failed", details: err });
+              res.status(500).json({ error: "Update medicine qty failed", details: err });
             });
           }
 
@@ -177,14 +177,26 @@ router.put("/import-detail/:detail_id", (req, res) => {
   });
 });
 
+
 // ดึงรายละเอียดนำเข้าตาม im_id
 router.get("/import-detail/:im_id", (req, res) => {
   const { im_id } = req.params;
 
-  const query = `
-    SELECT * FROM tbimport_detail WHERE im_id = ?
-    ORDER BY detail_id
+    const query = `
+    SELECT 
+      d.detail_id,
+      d.im_id,
+      d.med_id,
+      m.med_name,
+      t.type_name,
+      d.expired_date,
+      d.qty
+    FROM tbimport_detail d
+    JOIN tbmedicines m ON d.med_id = m.med_id
+    JOIN tbmedicinestype t ON m.medtype_id = t.medtype_id
+    WHERE d.im_id = ?
   `;
+
 
   db.query(query, [im_id], (err, results) => {
     if (err) {
@@ -223,6 +235,7 @@ router.get("/import-detail", (req, res) => {
     });
   });
 });
+
 
 // ✅ DELETE - ลบ import detail และลดจำนวนยา
 router.delete("/import-detail/:detail_id", (req, res) => {
